@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = 'Zoo-In-Gong | 입장 완료' %}
+{% include 'partials/head.html' %}
+<body class="auth-page auth-page-fresh dog-world-page entry-complete-page">
+    <main class="entry-complete-card">
+        <div class="entry-banner-wrap">
+            <img src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+        </div>
+
+        <section class="entry-complete-copy">
+            <p class="auth-kicker">입장권 발급 완료</p>
+            <h1>{{ profile.pet_name }}의 강아지 세계 입장 완료!</h1>
+            <p class="entry-complete-message">
+                <span>이제 {{ profile.pet_name }}의 하루를 주인공답게 기록할 준비가 끝났어요.</span>
+                <span>첫 게시물로 강아지 세계에 발자국을 남겨보세요.</span>
+            </p>
+        </section>
+
+        <div class="entry-profile-chip">
+            <span class="avatar avatar-medium avatar-ring">
+                {% if profile.display_avatar_url %}
+                <img src="{{ profile.display_avatar_url }}" alt="{{ profile.pet_name }}">
+                {% else %}
+                <span>{{ profile.initial }}</span>
+                {% endif %}
+            </span>
+            <span>
+                <strong>{{ profile.pet_name }}</strong>
+                <small>{{ profile.persona }}</small>
+            </span>
+        </div>
+
+        <a class="primary-button full-width entry-start-button" href="{{ url_for('index') }}">강아지 세계로 입장하기</a>
+    </main>
+</body>
+</html>

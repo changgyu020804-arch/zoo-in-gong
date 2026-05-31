@@ -1,0 +1,14 @@
+<header class="mobile-topbar">
+    <div class="brand-mark brand-image-mark">
+        <img class="brand-logo-image" src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+    </div>
+    {% if topbar_action %}
+    <button class="icon-button" data-nav-action="{{ topbar_action }}" aria-label="{{ topbar_label }}">
+        <i class="{{ topbar_icon }}"></i>
+    </button>
+    {% else %}
+    <a class="icon-button" href="{{ topbar_href or url_for('profile') }}" aria-label="{{ topbar_label }}">
+        <i class="{{ topbar_icon }}"></i>
+    </a>
+    {% endif %}
+</header>

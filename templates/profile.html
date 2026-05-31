@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = user.pet_name ~ ' | 프로필' %}
+{% include 'partials/head.html' %}
+<body data-page="profile">
+    <div class="app-shell">
+        {% set sidebar_variant = 'profile' %}
+        {% set sidebar_profile = viewer %}
+        {% set sidebar_chip_button = can_edit %}
+        {% include 'partials/app_sidebar.html' %}
+
+        <main class="content-column">
+            {% if can_edit %}
+            {% set topbar_action = 'settings' %}
+            {% set topbar_href = none %}
+            {% set topbar_icon = 'fa-solid fa-sliders' %}
+            {% set topbar_label = '프로필 설정' %}
+            {% else %}
+            {% set topbar_action = none %}
+            {% set topbar_href = url_for('profile') %}
+            {% set topbar_icon = 'fa-regular fa-circle-user' %}
+            {% set topbar_label = '내 프로필' %}
+            {% endif %}
+            {% include 'partials/mobile_topbar.html' %}
+
+            <section class="profile-hero">
+                <div class="profile-hero-head">
+                    <span class="avatar avatar-xl avatar-ring">
+                        {% if user.display_avatar_url %}
+                        <img src="{{ user.display_avatar_url }}" alt="{{ user.pet_name }}">
+                        {% else %}
+                        <span>{{ user.initial }}</span>
+                        {% endif %}
+                    </span>
+                    <div class="profile-hero-copy">
+                        <div class="profile-title-row">
+                            <h1>{{ user.pet_name }}</h1>
+                            {% if can_edit %}
+                            <button class="primary-button" data-nav-action="settings">프로필 편집</button>
+                            {% else %}
+                            <div class="profile-action-row">
+                                <button
+                                    type="button"
+                                    class="follow-button js-follow-button {% if is_following %}is-following{% endif %}"
+                                    data-username="{{ user.username }}"
+                                    data-following="{{ 'true' if is_following else 'false' }}"
+                                >
+                                    <span class="follow-label">{{ '팔로잉' if is_following else '팔로우' }}</span>
+                                </button>
+                                <button type="button" class="ghost-button js-open-message" data-username="{{ user.username }}">메시지</button>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="meta-line">
+                            {{ user.handle }} · {{ user.pet_species }} · {{ user.pet_age }}살
+                        </div>
+                        <p class="status-line">{{ user.status_message }}</p>
+                        <p class="bio-line">{{ user.bio }}</p>
+                        <p class="persona-note">{{ user.persona_summary }}</p>
+                        <div class="badge-row">
+                            {% for badge in user.badges %}
+                            <span class="profile-badge" title="{{ badge.description }}">
+                                <i class="{{ badge.icon }}"></i>
+                                {{ badge.label }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        <div class="stats-row large">
+                            <div><strong>{{ stats.posts_count }}</strong><span>게시물</span></div>
+                            <div><strong>{{ stats.total_likes }}</strong><span>좋아요</span></div>
+                            {% if can_edit %}
+                            <a class="stats-link" href="{{ url_for('friends') }}"><strong data-friend-count>{{ stats.friend_count }}</strong><span>멍친구</span></a>
+                            {% else %}
+                            <div><strong>{{ stats.friend_count }}</strong><span>멍친구</span></div>
+                            {% endif %}
+                            {% if can_edit %}
+                            <a class="stats-link" href="#saved-posts"><strong data-bookmark-count>{{ stats.bookmark_count }}</strong><span>저장</span></a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chip-row">
+                    <span class="tag-pill">#{{ user.persona }}</span>
+                    {% if user.personality %}<span class="tag-pill">성격: {{ user.personality }}</span>{% endif %}
+                    <span class="tag-pill">{{ user.activity_level }} 활동성</span>
+                    <span class="tag-pill">좋아함: {{ user.pet_likes }}</span>
+                    <span class="tag-pill">싫어함: {{ user.pet_dislikes }}</span>
+                    <span class="tag-pill">출몰지: {{ user.favorite_place }}</span>
+                </div>
+            </section>
+
+            {% if can_edit %}
+            <section class="panel-card" id="saved-posts">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">저장한 게시물</p>
+                        <h2>다시 보고 싶은 순간</h2>
+                    </div>
+                </div>
+                {% if saved_posts %}
+                <div class="profile-grid">
+                    {% for post in saved_posts %}
+                    <button
+                        type="button"
+                        class="grid-post js-searchable js-open-post-detail"
+                        data-search="{{ post.search_text }}"
+                        data-post-id="{{ post.id }}"
+                    >
+                        <img src="{{ post.image_url }}" alt="{{ post.pet_name }}">
+                        <div class="grid-post-overlay">
+                            <strong><i class="fa-regular fa-bookmark"></i> {{ post.pet_name }}</strong>
+                            <span><i class="fa-solid fa-heart"></i> {{ post.likes }}</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <strong>아직 저장한 게시물이 없어요.</strong>
+                    <p>피드에서 북마크를 누르면 여기에 모아둘 수 있어요.</p>
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section class="panel-card">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">프로필 피드</p>
+                        <h2>{{ user.pet_name }}의 게시물</h2>
+                    </div>
+                    <a href="{{ url_for('index') }}" class="ghost-button">홈으로 이동</a>
+                </div>
+                <div class="profile-grid">
+                    {% for post in posts %}
+                    <button
+                        type="button"
+                        class="grid-post js-searchable js-open-post-detail"
+                        data-search="{{ post.search_text }}"
+                        data-post-id="{{ post.id }}"
+                        data-image-url="{{ post.image_url }}"
+                        data-caption="{{ post.caption_text | e }}"
+                        data-likes="{{ post.likes }}"
+                    >
+                        <img src="{{ post.image_url }}" alt="{{ post.pet_name }}">
+                        <div class="grid-post-overlay">
+                            <strong><i class="fa-solid fa-heart"></i> <span data-like-count-for="{{ post.id }}">{{ post.likes }}</span></strong>
+                            <span><i class="fa-regular fa-window-maximize"></i> 보기</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+
+        <aside class="right-rail">
+            <section class="panel-card">
+                <div class="section-head compact">
+                    <h3>프로필 메모</h3>
+                </div>
+                <div class="memo-list">
+                    <div>
+                        <strong>성격</strong>
+                        <p>{{ user.personality or '아직 선택된 성격이 없어요.' }}</p>
+                    </div>
+                    <div>
+                        <strong>한 줄 소개</strong>
+                        <p>{{ user.status_message }}</p>
+                    </div>
+                    <div>
+                        <strong>좋아하는 것</strong>
+                        <p>{{ user.pet_likes }}</p>
+                    </div>
+                    <div>
+                        <strong>집사 메모</strong>
+                        <p>{{ user.owner_persona_note or '아직 입력된 메모가 없어요.' }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel-card">
+                <div class="section-head compact">
+                    <h3>최근 알림</h3>
+                </div>
+                <ul class="notification-list">
+                    {% for item in notifications %}
+                    <li>
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.body }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            {% if can_edit %}
+            <a class="ghost-button full-width" href="{{ url_for('logout') }}">로그아웃</a>
+            {% else %}
+            <a class="ghost-button full-width" href="{{ url_for('profile') }}">내 프로필로 이동</a>
+            <a class="ghost-button full-width" href="{{ url_for('index') }}">피드로 돌아가기</a>
+            {% endif %}
+        </aside>
+    </div>
+
+    <nav class="mobile-nav">
+        <a class="mobile-nav-button" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i></a>
+        <button class="mobile-nav-button" data-nav-action="search"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="mobile-nav-button" data-nav-action="messages"><i class="fa-regular fa-paper-plane"></i></button>
+        <button class="mobile-nav-button" data-nav-action="alerts"><i class="fa-regular fa-heart"></i></button>
+        <a class="mobile-nav-button is-active" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i></a>
+    </nav>
+
+    <div class="overlay-panel" id="search-panel" aria-hidden="true">
+        <div class="panel-dialog compact-dialog">
+            <div class="panel-head">
+                <h3>검색</h3>
+                <button class="icon-button js-close-panel" data-close-target="search-panel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input
+                type="search"
+                id="search-input"
+                class="search-input"
+                placeholder="검색"
+                autocomplete="off"
+                enterkeyhint="search"
+            >
+            <select id="search-persona" class="search-persona-select" aria-label="페르소나 선택">
+                <option value="">전체 페르소나</option>
+                {% for persona in persona_options %}
+                <option value="{{ persona }}">{{ persona }}</option>
+                {% endfor %}
+            </select>
+            <select id="search-sort" class="search-sort-select" aria-label="검색 정렬">
+                <option value="match">매칭 점수순</option>
+                <option value="recent">최근 활동순</option>
+                <option value="posts">게시물 많은 순</option>
+                <option value="likes">좋아요 많은 순</option>
+            </select>
+            <div id="profile-search-results" class="profile-search-results"></div>
+        </div>
+    </div>
+
+    <div class="drawer" id="alerts-panel" aria-hidden="true">
+        <div class="drawer-head">
+            <h3>알림</h3>
+            <button class="icon-button js-close-panel" data-close-target="alerts-panel"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="drawer-list">
+            {% for item in notifications %}
+            <article class="drawer-item">
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.body }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="drawer wide-drawer" id="messages-panel" aria-hidden="true">
+        <div class="drawer-head">
+            <h3>메시지</h3>
+            <button class="icon-button js-close-panel" data-close-target="messages-panel"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="messages-layout">
+            <div class="message-thread-list" id="message-thread-list"></div>
+            <div class="message-room">
+                <div id="message-room-body" class="message-room-body"></div>
+                <div id="message-tone-preview" class="message-tone-preview" hidden></div>
+                <form id="message-form" class="message-form">
+                    <input type="text" id="message-input" placeholder="메시지를 입력하세요">
+                    <button type="submit" class="primary-button">보내기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if can_edit %}
+    <div class="overlay-panel" id="profile-modal" aria-hidden="true">
+        <div class="panel-dialog profile-dialog">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">프로필 설정</p>
+                    <h3>내 강아지 정보 수정</h3>
+                </div>
+                <button class="icon-button js-close-panel" data-close-target="profile-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="profile-preview">
+                <span class="avatar avatar-large avatar-ring">
+                    {% if user.display_avatar_url %}
+                    <img src="{{ user.display_avatar_url }}" alt="{{ user.pet_name }}">
+                    {% else %}
+                    <span>{{ user.initial }}</span>
+                    {% endif %}
+                </span>
+                <div>
+                    <strong>{{ user.pet_name }}</strong>
+                    <p>{{ user.status_message }}</p>
+                </div>
+            </div>
+
+            <form id="profile-form" class="profile-form">
+                <div class="form-grid">
+                    <label class="profile-avatar-upload full-span" for="profile-avatar-file">
+                        <span>프로필 사진</span>
+                        <div class="avatar-upload-row">
+                            <span class="avatar avatar-large avatar-ring">
+                                {% if user.display_avatar_url %}
+                                <img id="profile-avatar-preview" src="{{ user.display_avatar_url }}" alt="{{ user.pet_name }}">
+                                {% else %}
+                                <span id="profile-avatar-initial">{{ user.initial }}</span>
+                                <img id="profile-avatar-preview" src="" alt="{{ user.pet_name }}" hidden>
+                                {% endif %}
+                            </span>
+                            <div>
+                                <strong id="profile-avatar-file-name">사진 선택</strong>
+                                <small>내 컴퓨터에서 이미지를 골라 프로필 사진으로 사용할 수 있어요.</small>
+                            </div>
+                        </div>
+                        <input type="file" id="profile-avatar-file" accept="image/*">
+                        <input type="hidden" name="avatar_url" value="{{ user.avatar_url }}">
+                    </label>
+                    <label>
+                        <span>프로필 이름</span>
+                        <input type="text" name="pet_name" value="{{ user.pet_name }}" required>
+                    </label>
+                    <label>
+                        <span>견종</span>
+                        <input type="text" name="pet_species" value="{{ user.pet_species }}">
+                    </label>
+                    <label>
+                        <span>나이</span>
+                        <input type="number" name="pet_age" value="{{ user.pet_age }}" min="0">
+                    </label>
+                    <label>
+                        <span>성격</span>
+                        <select name="personality">
+                            {% for personality in ['장난꾸러기', '차분한', '애교많은', '호기심 많은', '용감한', '소심한', '활발한', '느긋한', '똑똑한', '먹보'] %}
+                            <option value="{{ personality }}" {% if user is defined and user.personality == personality or profile is defined and profile.personality == personality %}selected{% endif %}>{{ personality }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>활동성</span>
+                        <select name="activity_level">
+                            {% for level in ['낮음', '보통', '높음'] %}
+                            <option value="{{ level }}" {% if user.activity_level == level %}selected{% endif %}>{{ level }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>자주 가는 장소</span>
+                        <input type="text" name="favorite_place" value="{{ user.favorite_place }}">
+                    </label>
+                    <label class="full-span">
+                        <span>상태 메시지</span>
+                        <input type="text" name="status_message" value="{{ user.status_message }}">
+                    </label>
+                    <label class="full-span">
+                        <span>소개</span>
+                        <textarea name="bio" rows="3">{{ user.bio }}</textarea>
+                    </label>
+                    <label>
+                        <span>좋아하는 것</span>
+                        <input type="text" name="pet_likes" value="{{ user.pet_likes }}">
+                    </label>
+                    <label>
+                        <span>싫어하는 것</span>
+                        <input type="text" name="pet_dislikes" value="{{ user.pet_dislikes }}">
+                    </label>
+                </div>
+                <button type="submit" class="primary-button full-width">프로필 저장</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="overlay-panel" id="post-detail-modal" aria-hidden="true">
+        <div class="panel-dialog post-detail-dialog">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">게시물</p>
+                    <h3 id="detail-post-title">상세 보기</h3>
+                </div>
+                <button class="icon-button js-close-panel" data-close-target="post-detail-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="post-detail-layout">
+                <div class="post-detail-image-wrap">
+                    <img id="detail-post-image" src="" alt="게시물 사진">
+                </div>
+                <div class="post-detail-side">
+                    <div class="post-author">
+                        <span class="avatar avatar-small avatar-ring" id="detail-post-avatar"></span>
+                        <div>
+                            <strong id="detail-post-name"></strong>
+                            <div class="meta-line" id="detail-post-meta"></div>
+                        </div>
+                    </div>
+                    <p class="caption detail-caption" id="detail-post-caption"></p>
+                    <div class="post-detail-stats">
+                        <strong id="detail-post-likes">0</strong>
+                        <span>명이 좋아합니다</span>
+                    </div>
+                    <div class="comment-list detail-comments" id="detail-post-comments"></div>
+                    <div class="comment-form detail-comment-form">
+                        <input type="text" id="detail-comment-input" placeholder="댓글을 남겨보세요">
+                        <button class="ghost-button ai-comment-button js-detail-ai-comment" type="button" aria-label="AI 댓글 만들기">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>AI</span>
+                        </button>
+                        <button class="ghost-button js-detail-comment-submit" type="button">게시</button>
+                    </div>
+                    <div class="post-edit-panel detail-edit-panel" id="detail-edit-panel" hidden>
+                        <textarea id="detail-edit-input" rows="5" maxlength="700"></textarea>
+                        <div class="post-edit-actions">
+                            <button type="button" class="ghost-button danger-text-button js-detail-delete-post">삭제</button>
+                            <button type="button" class="ghost-button js-detail-cancel-edit">취소</button>
+                            <button type="button" class="primary-button js-detail-save-post">저장</button>
+                        </div>
+                    </div>
+                    <div class="post-detail-actions">
+                        <button type="button" class="ghost-button js-detail-like-post">
+                            <i class="fa-solid fa-heart"></i>
+                            <span>좋아요</span>
+                        </button>
+                        <button type="button" class="ghost-button js-detail-bookmark-post">
+                            <i class="fa-regular fa-bookmark"></i>
+                            <span>저장</span>
+                        </button>
+                        <button type="button" class="ghost-button js-detail-edit-post" hidden>
+                            <i class="fa-regular fa-pen-to-square"></i>
+                            <span>수정</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-panel" id="post-editor-modal" aria-hidden="true">
+        <div class="panel-dialog post-editor-dialog">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">게시물 관리</p>
+                    <h3>게시물 수정</h3>
+                </div>
+                <button class="icon-button js-close-panel" data-close-target="post-editor-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="post-editor-preview">
+                <img id="profile-post-editor-image" src="" alt="게시물 사진">
+            </div>
+            <div class="post-edit-panel profile-post-edit-panel">
+                <textarea id="profile-post-edit-input" rows="5" maxlength="700" placeholder="수정할 캡션을 입력하세요"></textarea>
+                <div class="post-edit-actions">
+                    <button type="button" class="ghost-button danger-text-button js-profile-delete-post">삭제</button>
+                    <button type="button" class="ghost-button js-close-panel" data-close-target="post-editor-modal">취소</button>
+                    <button type="button" class="primary-button js-profile-save-post">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260525d"></script>
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = 'Zoo-In-Gong | 홈' %}
+{% include 'partials/head.html' %}
+<body data-page="home">
+    <div class="app-shell">
+        {% set sidebar_variant = 'home' %}
+        {% set sidebar_profile = profile %}
+        {% set sidebar_chip_button = true %}
+        {% include 'partials/app_sidebar.html' %}
+
+        <main class="content-column">
+            {% set topbar_action = 'settings' %}
+            {% set topbar_href = none %}
+            {% set topbar_icon = 'fa-solid fa-sliders' %}
+            {% set topbar_label = '프로필 설정' %}
+            {% include 'partials/mobile_topbar.html' %}
+
+            {% set top_dog = like_rankings[0] if like_rankings else none %}
+            <section class="hero-strip top-dog-hero">
+                {% if top_dog %}
+                <div class="top-dog-profile">
+                    <a class="top-dog-avatar avatar avatar-xl avatar-ring" href="{{ url_for('public_profile', target_username=top_dog.username) }}" aria-label="{{ top_dog.pet_name }} 프로필">
+                        {% if top_dog.display_avatar_url %}
+                        <img src="{{ top_dog.display_avatar_url }}" alt="{{ top_dog.pet_name }}">
+                        {% else %}
+                        <span>{{ top_dog.initial }}</span>
+                        {% endif %}
+                    </a>
+                    <div class="top-dog-copy">
+                        <p class="eyebrow">핫한 댕댕이 1등</p>
+                        <h1>{{ top_dog.pet_name }}</h1>
+                        <p class="hero-copy">{{ top_dog.persona }}</p>
+                        <div class="top-dog-stats">
+                            <span><strong>{{ top_dog.total_likes }}</strong> 좋아요</span>
+                            <span><strong>{{ top_dog.post_count }}</strong> 게시물</span>
+                        </div>
+                        <a class="hero-profile-link" href="{{ url_for('public_profile', target_username=top_dog.username) }}">프로필 보기</a>
+                    </div>
+                </div>
+                {% if top_dog.latest_post %}
+                <button
+                    type="button"
+                    class="top-dog-latest js-open-post-detail"
+                    data-post-id="{{ top_dog.latest_post.id }}"
+                    aria-label="{{ top_dog.pet_name }}의 최근 게시물 보기"
+                >
+                    <img src="{{ top_dog.latest_post.image_url }}" alt="{{ top_dog.pet_name }} 최근 게시물">
+                    <span class="top-dog-latest-overlay">
+                        <small>최근 게시물 · {{ top_dog.latest_post.time_label }}</small>
+                        <strong>{{ top_dog.latest_post.caption_text or '게시물 보기' }}</strong>
+                    </span>
+                </button>
+                {% else %}
+                <div class="top-dog-latest top-dog-latest-empty">
+                    <strong>아직 최근 게시물이 없어요</strong>
+                </div>
+                {% endif %}
+                {% else %}
+                <div>
+                    <p class="eyebrow">핫한 댕댕이</p>
+                    <h1>아직 랭킹이 없어요</h1>
+                    <p class="hero-copy">첫 게시물을 올리고 오늘의 주인공이 되어보세요.</p>
+                </div>
+                {% endif %}
+            </section>
+
+            {% if daily_awards %}
+            <section class="panel-card daily-awards-section">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">오늘의 댕댕 랭킹</p>
+                        <h2>공유하고 싶은 오늘의 주인공</h2>
+                    </div>
+                </div>
+                <div class="daily-awards-grid">
+                    {% for award in daily_awards %}
+                    <article class="daily-award-card award-{{ award.key }}">
+                        <button
+                            type="button"
+                            class="daily-award-image js-open-post-detail"
+                            data-post-id="{{ award.post.id }}"
+                            aria-label="{{ award.post.pet_name }} {{ award.title }} 게시물 보기"
+                        >
+                            <img src="{{ award.post.image_url }}" alt="{{ award.post.pet_name }} {{ award.title }}">
+                            <span><i class="{{ award.icon }}"></i> {{ award.label }}</span>
+                        </button>
+                        <div class="daily-award-copy">
+                            <small>{{ award.date_label }} 선정</small>
+                            <a class="profile-name-link" href="{{ url_for('public_profile', target_username=award.post.username) }}">
+                                <strong>{{ award.post.pet_name }}</strong>
+                            </a>
+                            <p>{{ award.reason }}</p>
+                            <span>{{ award.post.blurb }}</span>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            <section
+                class="persona-share-section"
+                id="persona-share-section"
+                data-pet-name="{{ profile.pet_name | e }}"
+                data-persona="{{ profile.persona | e }}"
+                data-summary="{{ profile.persona_summary | e }}"
+                data-traits="{{ profile.persona_traits | map(attribute='label') | join(' · ') | e }}"
+                data-avatar-url="{{ profile.display_avatar_url | e }}"
+                data-initial="{{ profile.initial | e }}"
+            >
+                <div class="persona-share-copy">
+                    <p class="eyebrow">성격 테스트 결과</p>
+                    <h2>공유하기 좋은 내 강아지 카드</h2>
+                    <p>{{ profile.pet_name }}의 페르소나를 한 장으로 저장해서 카톡이나 인스타에 올릴 수 있어요.</p>
+                    <div class="persona-share-actions">
+                        <button type="button" class="primary-button js-download-persona-card">
+                            <i class="fa-solid fa-download"></i>
+                            카드 저장
+                        </button>
+                        <button type="button" class="ghost-button js-copy-persona-share">
+                            <i class="fa-regular fa-copy"></i>
+                            문구 복사
+                        </button>
+                    </div>
+                </div>
+                <div class="persona-result-card" id="persona-result-card" aria-label="{{ profile.pet_name }} 페르소나 공유 카드">
+                    <div class="persona-result-avatar">
+                        {% if profile.display_avatar_url %}
+                        <img src="{{ profile.display_avatar_url }}" alt="{{ profile.pet_name }}">
+                        {% else %}
+                        <span>{{ profile.initial }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="persona-result-copy">
+                        <span>내 강아지는</span>
+                        <strong>{{ profile.persona }}</strong>
+                        <p>{{ profile.persona_summary }}</p>
+                    </div>
+                    <div class="persona-result-tags">
+                        {% for trait in profile.persona_traits[:3] %}
+                        <span>{{ trait.label }}</span>
+                        {% endfor %}
+                    </div>
+                    <small>Zoo-In-Gong</small>
+                </div>
+            </section>
+
+            <section class="composer-card" id="composer-section">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">새 게시물</p>
+                        <h2>귀염둥이의 일상</h2>
+                    </div>
+                    <button class="ghost-button" data-nav-action="upload">사진 선택</button>
+                </div>
+
+                <div class="daily-mission-card">
+                    <div class="daily-mission-icon">
+                        <i class="{{ daily_mission.icon }}"></i>
+                    </div>
+                    <div class="daily-mission-copy">
+                        <span class="eyebrow">오늘의 미션 · {{ daily_mission.date_label }}</span>
+                        <strong>{{ daily_mission.title }}</strong>
+                        <p>{{ daily_mission.helper }}</p>
+                    </div>
+                    <button
+                        type="button"
+                        class="ghost-button js-use-daily-mission"
+                        data-mission-prompt="{{ daily_mission.prompt }}"
+                    >
+                        {{ daily_mission.cta }}
+                    </button>
+                    {% if daily_mission.angles %}
+                    <div class="mission-angle-row" aria-label="오늘의 촬영 아이디어">
+                        {% for angle in daily_mission.angles %}
+                        <button
+                            type="button"
+                            class="mission-angle-chip js-use-daily-mission"
+                            data-mission-prompt="{{ daily_mission.prompt }} {{ angle }} 느낌으로 적어주세요."
+                        >
+                            {{ angle }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form id="uploadForm" class="upload-form">
+                    <label for="activity-input" class="activity-field activity-field-prominent">
+                        <span><i class="fa-solid fa-pen-nib"></i> 오늘 한 활동</span>
+                        <textarea id="activity-input" name="activity_text" rows="4" maxlength="320" placeholder="예: 한강공원에서 공놀이를 하고, 간식 기다리다가 사진을 찍었어요." required></textarea>
+                        <small>여기에 적은 활동을 바탕으로 귀여운 캡션을 만들어요.</small>
+                    </label>
+                    <label for="file-input" class="upload-dropzone">
+                        <i class="fa-solid fa-camera-retro"></i>
+                        <img id="upload-preview-image" class="upload-preview-image" src="" alt="선택한 사진 미리보기" hidden>
+                        <strong id="file-name">오늘 올릴 강아지 사진을 선택해 주세요</strong>
+                        <span>가입할 때 저장한 성향과 집사 메모까지 반영해 캡션을 만듭니다.</span>
+                    </label>
+                    <input type="file" id="file-input" accept="image/*" required>
+                    <div class="caption-preview-box" id="caption-preview-box" hidden>
+                        <div class="caption-preview-head">
+                            <strong>AI 캡션 미리보기</strong>
+                            <button type="button" class="ghost-button js-preview-caption">다시 생성</button>
+                        </div>
+                        <textarea id="caption-preview-input" name="caption_override" rows="5" maxlength="700" placeholder="AI가 만든 캡션이 여기에 표시돼요. 마음에 들게 고쳐서 올릴 수도 있어요."></textarea>
+                    </div>
+                    <button type="button" class="ghost-button full-width js-preview-caption">AI 캡션 먼저 만들기</button>
+                    <button type="submit" class="primary-button full-width">바로 업로드하고 AI 캡션 붙이기</button>
+                </form>
+                <div id="loading" class="loading-box">
+                    <img src="{{ url_for('static', filename='images/loading.png') }}" alt="로딩 중">
+                    <span>사진과 성향 정보를 함께 읽는 중이에요...</span>
+                </div>
+            </section>
+
+            <section class="feed-list">
+                {% for post in posts %}
+                <article class="post-card dog-social-card js-searchable" id="post-{{ post.id }}" data-search="{{ post.search_text }}" data-caption-status="{{ post.caption_status }}">
+                    <div class="post-header">
+                        <div class="post-author">
+                            <a class="avatar avatar-small avatar-ring" href="{{ url_for('public_profile', target_username=post.username) }}" aria-label="{{ post.pet_name }} 프로필">
+                                {% if post.display_avatar_url %}
+                                <img src="{{ post.display_avatar_url }}" alt="{{ post.pet_name }}">
+                                {% else %}
+                                <span>{{ post.initial }}</span>
+                                {% endif %}
+                            </a>
+                            <div>
+                                <a class="profile-name-link" href="{{ url_for('public_profile', target_username=post.username) }}"><strong>{{ post.pet_name }}</strong></a>
+                                <div class="meta-line">{{ post.time_label }} · {{ post.persona }}</div>
+                            </div>
+                        </div>
+                        <div class="post-header-tools">
+                            {% if not post.is_owner %}
+                            <button
+                                type="button"
+                                class="follow-button js-follow-button {% if post.is_following %}is-following{% endif %}"
+                                data-username="{{ post.username }}"
+                                data-following="{{ 'true' if post.is_following else 'false' }}"
+                            >
+                                <span class="follow-label">{{ '팔로잉' if post.is_following else '팔로우' }}</span>
+                            </button>
+                            {% else %}
+                            <button class="icon-button js-edit-post" data-post-id="{{ post.id }}" aria-label="게시물 수정">
+                                <i class="fa-regular fa-pen-to-square"></i>
+                            </button>
+                            <button class="icon-button danger-button js-delete-post" data-post-id="{{ post.id }}" aria-label="게시물 삭제">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                            {% endif %}
+                            <span class="tag-pill">{{ post.pet_species }}</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="post-image-wrap js-open-post-detail" data-post-id="{{ post.id }}" aria-label="게시물 상세 보기">
+                        <img class="post-image" src="{{ post.image_url }}" alt="{{ post.pet_name }} 사진">
+                    </button>
+
+                    <div class="post-actions dog-social-actions">
+                        <button type="button" class="dog-action-button js-like-button {% if post.liked_by_viewer %}is-liked{% endif %}" data-post-id="{{ post.id }}" data-liked="{{ 'true' if post.liked_by_viewer else 'false' }}" aria-label="좋아요">
+                            <i class="fa-solid fa-heart"></i>
+                            <strong data-like-count-for="{{ post.id }}" id="like-count-{{ post.id }}">{{ post.likes }}</strong>
+                        </button>
+                        <button type="button" class="dog-action-button js-comment-focus" data-post-id="{{ post.id }}" aria-label="댓글">
+                            <i class="fa-regular fa-comment"></i>
+                            <strong id="comment-count-{{ post.id }}">{{ post.comments | length }}</strong>
+                        </button>
+                        <button
+                            type="button"
+                            class="icon-button save-button js-bookmark-button {% if post.bookmarked_by_viewer %}is-bookmarked{% endif %}"
+                            data-post-id="{{ post.id }}"
+                            data-bookmarked="{{ 'true' if post.bookmarked_by_viewer else 'false' }}"
+                            aria-label="저장"
+                        >
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+                        <button class="icon-button js-open-post-detail" data-post-id="{{ post.id }}" aria-label="상세 보기">
+                            <i class="fa-regular fa-window-maximize"></i>
+                        </button>
+                    </div>
+
+                    <div class="post-copy">
+                        <p class="caption"><strong>{{ post.pet_name }}:</strong> <span id="caption-text-{{ post.id }}" class="{% if post.caption_pending %}caption-pending{% endif %}">{{ post.caption | safe }}</span></p>
+                        {% if post.is_owner %}
+                        <div class="post-edit-panel" id="post-edit-{{ post.id }}" hidden>
+                            <textarea id="post-edit-input-{{ post.id }}" rows="4" maxlength="700">{{ post.caption_text }}</textarea>
+                            <div class="post-edit-actions">
+                                <button type="button" class="ghost-button js-cancel-edit" data-post-id="{{ post.id }}">취소</button>
+                                <button type="button" class="primary-button js-save-post" data-post-id="{{ post.id }}">저장</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="comments-box">
+                        <div id="comment-list-{{ post.id }}" class="comment-list">
+                            {% for comment in post.comments %}
+                            <div class="comment-item" data-comment-id="{{ comment.id }}" data-post-id="{{ post.id }}" data-content-text="{{ comment.content_text | e }}">
+                                <div class="comment-main">{{ comment.content | safe }}</div>
+                                <div class="comment-meta">
+                                    <span>{{ comment.time_label }}</span>
+                                    {% if comment.can_edit %}
+                                    <button type="button" class="comment-tool js-edit-comment" data-comment-id="{{ comment.id }}">수정</button>
+                                    <button type="button" class="comment-tool danger-text-button js-delete-comment" data-comment-id="{{ comment.id }}">삭제</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="comment-form">
+                            <input type="text" id="comment-input-{{ post.id }}" placeholder="댓글을 남겨보세요">
+                            <button class="ghost-button ai-comment-button js-ai-comment" type="button" data-post-id="{{ post.id }}" aria-label="AI 댓글 만들기">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>AI</span>
+                            </button>
+                            <button class="ghost-button js-comment-submit" type="button" data-post-id="{{ post.id }}">게시</button>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+
+            <section class="explore-section" id="explore-section">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">탐색</p>
+                        <h2>지금 분위기 좋은 강아지들</h2>
+                    </div>
+                </div>
+                <div class="explore-grid">
+                    {% for post in posts[:9] %}
+                    <button class="explore-card js-open-post-detail" data-post-id="{{ post.id }}">
+                        <img src="{{ post.image_url }}" alt="{{ post.pet_name }}">
+                        <div class="explore-overlay">
+                            <strong>{{ post.pet_name }}</strong>
+                            <span>#{{ post.persona }}</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </section>
+        </main>
+
+        <aside class="right-rail">
+            <section class="profile-card">
+                <div class="profile-card-head">
+                    <a class="avatar avatar-large avatar-ring" href="{{ url_for('profile') }}" aria-label="{{ profile.pet_name }} 프로필">
+                        {% if profile.display_avatar_url %}
+                        <img src="{{ profile.display_avatar_url }}" alt="{{ profile.pet_name }}">
+                        {% else %}
+                        <span>{{ profile.initial }}</span>
+                        {% endif %}
+                    </a>
+                    <div>
+                        <a class="profile-name-link" href="{{ url_for('profile') }}"><strong class="profile-name">{{ profile.pet_name }}</strong></a>
+                        <div class="meta-line">{{ profile.handle }}</div>
+                    </div>
+                </div>
+                <p class="status-line">{{ profile.status_message }}</p>
+                <p class="bio-line">{{ profile.bio }}</p>
+                <div class="badge-row compact">
+                    {% for badge in profile.badges %}
+                    <span class="profile-badge" title="{{ badge.description }}">
+                        <i class="{{ badge.icon }}"></i>
+                        {{ badge.label }}
+                    </span>
+                    {% endfor %}
+                </div>
+                <div class="stats-row">
+                    <div><strong>{{ stats.posts_count }}</strong><span>게시물</span></div>
+                    <div><strong>{{ stats.total_likes }}</strong><span>좋아요</span></div>
+                    <a class="stats-link" href="{{ url_for('friends') }}"><strong data-friend-count>{{ stats.friend_count }}</strong><span>멍친구</span></a>
+                    <a class="stats-link" href="{{ url_for('profile') }}#saved-posts"><strong data-bookmark-count>{{ stats.bookmark_count }}</strong><span>저장</span></a>
+                </div>
+            </section>
+
+            <section class="panel-card">
+                <div class="section-head compact">
+                    <h3>핫한 댕댕이</h3>
+                </div>
+                <div class="ranking-list">
+                    {% for item in like_rankings %}
+                    <div class="ranking-item rank-card-{{ item.rank }}">
+                        <div class="ranking-left">
+                            <span class="ranking-badge rank-{{ item.rank }}">
+                                {% if item.rank == 1 %}
+                                <i class="fa-solid fa-crown" aria-hidden="true"></i>
+                                {% else %}
+                                {{ item.rank }}
+                                {% endif %}
+                            </span>
+                            <a class="avatar avatar-small" href="{{ url_for('public_profile', target_username=item.username) }}" aria-label="{{ item.pet_name }} 프로필">
+                                {% if item.display_avatar_url %}
+                                <img src="{{ item.display_avatar_url }}" alt="{{ item.pet_name }}">
+                                {% else %}
+                                <span>{{ item.initial }}</span>
+                                {% endif %}
+                            </a>
+                            <div class="ranking-copy">
+                                <a class="profile-name-link" href="{{ url_for('public_profile', target_username=item.username) }}"><strong>{{ item.pet_name }}</strong></a>
+                                <small>{{ item.persona }}</small>
+                            </div>
+                        </div>
+                        <div class="ranking-right">
+                            <strong>{{ item.total_likes }}</strong>
+                            <small>likes</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="panel-card">
+                <div class="section-head compact">
+                    <h3>최근 알림</h3>
+                </div>
+                <ul class="notification-list">
+                    {% for item in notifications %}
+                    <li>
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.body }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </aside>
+    </div>
+
+    <nav class="mobile-nav">
+        <button class="mobile-nav-button is-active" data-nav-action="home"><i class="fa-solid fa-house"></i></button>
+        <button class="mobile-nav-button" data-nav-action="search"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="mobile-nav-button" data-nav-action="upload"><i class="fa-regular fa-square-plus"></i></button>
+        <a class="mobile-nav-button" href="{{ url_for('studio') }}"><i class="fa-solid fa-wand-magic-sparkles"></i></a>
+        <button class="mobile-nav-button" data-nav-action="messages"><i class="fa-regular fa-paper-plane"></i></button>
+        <button class="mobile-nav-button" data-nav-action="alerts"><i class="fa-regular fa-heart"></i></button>
+        <a class="mobile-nav-button" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i></a>
+    </nav>
+
+    <div class="overlay-panel" id="search-panel" aria-hidden="true">
+        <div class="panel-dialog compact-dialog">
+            <div class="panel-head">
+                <h3>검색</h3>
+                <button class="icon-button js-close-panel" data-close-target="search-panel"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input
+                type="search"
+                id="search-input"
+                class="search-input"
+                placeholder="검색"
+                autocomplete="off"
+                enterkeyhint="search"
+            >
+            <select id="search-persona" class="search-persona-select" aria-label="페르소나 선택">
+                <option value="">전체 페르소나</option>
+                {% for persona in persona_options %}
+                <option value="{{ persona }}">{{ persona }}</option>
+                {% endfor %}
+            </select>
+            <select id="search-sort" class="search-sort-select" aria-label="검색 정렬">
+                <option value="match">매칭 점수순</option>
+                <option value="recent">최근 활동순</option>
+                <option value="posts">게시물 많은 순</option>
+                <option value="likes">좋아요 많은 순</option>
+            </select>
+            <div id="profile-search-results" class="profile-search-results"></div>
+        </div>
+    </div>
+
+    <div class="drawer" id="alerts-panel" aria-hidden="true">
+        <div class="drawer-head">
+            <h3>알림</h3>
+            <button class="icon-button js-close-panel" data-close-target="alerts-panel"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="drawer-list">
+            {% for item in notifications %}
+            <article class="drawer-item">
+                <strong>{{ item.title }}</strong>
+                <p>{{ item.body }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="drawer wide-drawer" id="messages-panel" aria-hidden="true">
+        <div class="drawer-head">
+            <h3>메시지</h3>
+            <button class="icon-button js-close-panel" data-close-target="messages-panel"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="messages-layout">
+            <div class="message-thread-list" id="message-thread-list"></div>
+            <div class="message-room">
+                <div id="message-room-body" class="message-room-body"></div>
+                <div id="message-tone-preview" class="message-tone-preview" hidden></div>
+                <form id="message-form" class="message-form">
+                    <input type="text" id="message-input" placeholder="메시지를 입력하세요">
+                    <button type="submit" class="primary-button">보내기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-panel" id="profile-modal" aria-hidden="true">
+        <div class="panel-dialog profile-dialog">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">프로필 설정</p>
+                    <h3>내 강아지 정보 수정</h3>
+                </div>
+                <button class="icon-button js-close-panel" data-close-target="profile-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="profile-preview">
+                <span class="avatar avatar-large avatar-ring">
+                    {% if profile.display_avatar_url %}
+                    <img src="{{ profile.display_avatar_url }}" alt="{{ profile.pet_name }}">
+                    {% else %}
+                    <span>{{ profile.initial }}</span>
+                    {% endif %}
+                </span>
+                <div>
+                    <strong>{{ profile.pet_name }}</strong>
+                    <p>{{ profile.status_message }}</p>
+                </div>
+            </div>
+
+            <form id="profile-form" class="profile-form">
+                <div class="form-grid">
+                    <label class="profile-avatar-upload full-span" for="profile-avatar-file">
+                        <span>프로필 사진</span>
+                        <div class="avatar-upload-row">
+                            <span class="avatar avatar-large avatar-ring">
+                                {% if profile.display_avatar_url %}
+                                <img id="profile-avatar-preview" src="{{ profile.display_avatar_url }}" alt="{{ profile.pet_name }}">
+                                {% else %}
+                                <span id="profile-avatar-initial">{{ profile.initial }}</span>
+                                <img id="profile-avatar-preview" src="" alt="{{ profile.pet_name }}" hidden>
+                                {% endif %}
+                            </span>
+                            <div>
+                                <strong id="profile-avatar-file-name">사진 선택</strong>
+                                <small>내 컴퓨터에서 이미지를 골라 프로필 사진으로 사용할 수 있어요.</small>
+                            </div>
+                        </div>
+                        <input type="file" id="profile-avatar-file" accept="image/*">
+                        <input type="hidden" name="avatar_url" value="{{ profile.avatar_url }}">
+                    </label>
+                    <label>
+                        <span>프로필 이름</span>
+                        <input type="text" name="pet_name" value="{{ profile.pet_name }}" required>
+                    </label>
+                    <label>
+                        <span>견종</span>
+                        <input type="text" name="pet_species" value="{{ profile.pet_species }}">
+                    </label>
+                    <label>
+                        <span>나이</span>
+                        <input type="number" name="pet_age" value="{{ profile.pet_age }}" min="0">
+                    </label>
+                    <label>
+                        <span>성격</span>
+                        <select name="personality">
+                            {% for personality in ['장난꾸러기', '차분한', '애교많은', '호기심 많은', '용감한', '소심한', '활발한', '느긋한', '똑똑한', '먹보'] %}
+                            <option value="{{ personality }}" {% if user is defined and user.personality == personality or profile is defined and profile.personality == personality %}selected{% endif %}>{{ personality }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>활동성</span>
+                        <select name="activity_level">
+                            {% for level in ['낮음', '보통', '높음'] %}
+                            <option value="{{ level }}" {% if profile.activity_level == level %}selected{% endif %}>{{ level }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span>자주 가는 장소</span>
+                        <input type="text" name="favorite_place" value="{{ profile.favorite_place }}">
+                    </label>
+                    <label class="full-span">
+                        <span>상태 메시지</span>
+                        <input type="text" name="status_message" value="{{ profile.status_message }}">
+                    </label>
+                    <label class="full-span">
+                        <span>소개</span>
+                        <textarea name="bio" rows="3">{{ profile.bio }}</textarea>
+                    </label>
+                    <label>
+                        <span>좋아하는 것</span>
+                        <input type="text" name="pet_likes" value="{{ profile.pet_likes }}">
+                    </label>
+                    <label>
+                        <span>싫어하는 것</span>
+                        <input type="text" name="pet_dislikes" value="{{ profile.pet_dislikes }}">
+                    </label>
+                </div>
+                <button type="submit" class="primary-button full-width">프로필 저장</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="overlay-panel" id="post-detail-modal" aria-hidden="true">
+        <div class="panel-dialog post-detail-dialog">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">게시물</p>
+                    <h3 id="detail-post-title">상세 보기</h3>
+                </div>
+                <button class="icon-button js-close-panel" data-close-target="post-detail-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="post-detail-layout">
+                <div class="post-detail-image-wrap">
+                    <img id="detail-post-image" src="" alt="게시물 사진">
+                </div>
+                <div class="post-detail-side">
+                    <div class="post-author">
+                        <span class="avatar avatar-small avatar-ring" id="detail-post-avatar"></span>
+                        <div>
+                            <strong id="detail-post-name"></strong>
+                            <div class="meta-line" id="detail-post-meta"></div>
+                        </div>
+                    </div>
+                    <p class="caption detail-caption" id="detail-post-caption"></p>
+                    <div class="post-detail-stats">
+                        <strong id="detail-post-likes">0</strong>
+                        <span>명이 좋아합니다</span>
+                    </div>
+                    <div class="comment-list detail-comments" id="detail-post-comments"></div>
+                    <div class="comment-form detail-comment-form">
+                        <input type="text" id="detail-comment-input" placeholder="댓글을 남겨보세요">
+                        <button class="ghost-button ai-comment-button js-detail-ai-comment" type="button" aria-label="AI 댓글 만들기">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>AI</span>
+                        </button>
+                        <button class="ghost-button js-detail-comment-submit" type="button">게시</button>
+                    </div>
+                    <div class="post-edit-panel detail-edit-panel" id="detail-edit-panel" hidden>
+                        <textarea id="detail-edit-input" rows="5" maxlength="700"></textarea>
+                        <div class="post-edit-actions">
+                            <button type="button" class="ghost-button danger-text-button js-detail-delete-post">삭제</button>
+                            <button type="button" class="ghost-button js-detail-cancel-edit">취소</button>
+                            <button type="button" class="primary-button js-detail-save-post">저장</button>
+                        </div>
+                    </div>
+                    <div class="post-detail-actions">
+                        <button type="button" class="ghost-button js-detail-like-post">
+                            <i class="fa-solid fa-heart"></i>
+                            <span>좋아요</span>
+                        </button>
+                        <button type="button" class="ghost-button js-detail-bookmark-post">
+                            <i class="fa-regular fa-bookmark"></i>
+                            <span>저장</span>
+                        </button>
+                        <button type="button" class="ghost-button js-detail-edit-post" hidden>
+                            <i class="fa-regular fa-pen-to-square"></i>
+                            <span>수정</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260525d"></script>
+</body>
+</html>
+
+
+

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = 'Zoo-In-Gong | 로그인' %}
+{% include 'partials/head.html' %}
+<body class="auth-page auth-page-fresh dog-world-page">
+    <main class="auth-shell">
+        <section class="auth-card login-card">
+            <div class="brand-mark brand-large">Zoo-In-Gong</div>
+            <p class="auth-kicker">강아지 세계로 돌아가는 문</p>
+            <h1 class="auth-title">만나서 반갑다멍!</h1>
+            <p class="auth-copy">아이디와 비밀번호를 입력하면 우리 주인공들의 세계로 바로 들어가요.</p>
+
+            {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+
+            <form action="{{ url_for('login') }}" method="post" class="auth-form">
+                <label class="field-line">
+                    <span>강아지 세계 아이디</span>
+                    <input type="text" name="username" placeholder="아이디를 입력하세요" autocomplete="username" required>
+                </label>
+                <label class="field-line">
+                    <span>비밀 간식 번호</span>
+                    <input type="password" name="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+                </label>
+                <button type="submit" class="primary-button full-width">입장하기</button>
+            </form>
+        </section>
+
+        <section class="auth-switch">
+            아직 초대장이 없다면 <a href="{{ url_for('signup') }}">강아지 세계 입장권 만들기</a>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = '멍친구 | Zoo-In-Gong' %}
+{% include 'partials/head.html' %}
+<body data-page="friends">
+    <div class="app-shell">
+        {% set sidebar_variant = 'simple' %}
+        {% set sidebar_active = 'friends' %}
+        {% set sidebar_profile = profile %}
+        {% set sidebar_chip_button = false %}
+        {% include 'partials/app_sidebar.html' %}
+
+        <main class="content-column">
+            {% set topbar_action = none %}
+            {% set topbar_href = url_for('profile') %}
+            {% set topbar_icon = 'fa-regular fa-circle-user' %}
+            {% set topbar_label = '프로필' %}
+            {% include 'partials/mobile_topbar.html' %}
+
+            <section class="profile-hero friends-hero">
+                <div>
+                    <p class="eyebrow">멍친구</p>
+                    <h1>팔로우한 친구 {{ stats.friend_count }}명</h1>
+                    <p class="hero-copy">함께 뛰어놀 친구들의 프로필을 한눈에 볼 수 있어요.</p>
+                </div>
+            </section>
+
+            <section class="panel-card">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">내 친구 목록</p>
+                        <h2>팔로우한 친구</h2>
+                    </div>
+                </div>
+                {% if friends %}
+                <div class="friend-grid">
+                    {% for friend in friends %}
+                    <article class="friend-card js-friend-card" data-username="{{ friend.username }}">
+                        <a class="avatar avatar-large avatar-ring" href="{{ url_for('public_profile', target_username=friend.username) }}" aria-label="{{ friend.pet_name }} 프로필">
+                            {% if friend.display_avatar_url %}
+                            <img src="{{ friend.display_avatar_url }}" alt="{{ friend.pet_name }}">
+                            {% else %}
+                            <span>{{ friend.initial }}</span>
+                            {% endif %}
+                        </a>
+                        <div class="friend-card-copy">
+                            <a class="profile-name-link" href="{{ url_for('public_profile', target_username=friend.username) }}"><strong>{{ friend.pet_name }}</strong></a>
+                            <span>{{ friend.handle }} · {{ friend.persona }}</span>
+                            <p>{{ friend.status_message }}</p>
+                            <div class="friend-mini-stats">
+                                <span>{{ friend.posts_count }} 게시물</span>
+                                <span>{{ friend.total_likes }} 좋아요</span>
+                                <span class="match-chip">{{ friend.match_score }}% {{ friend.match_label }}</span>
+                            </div>
+                            <p class="match-summary">{{ friend.match_summary }}</p>
+                            <div class="badge-row compact">
+                                {% for badge in friend.badges %}
+                                <span class="profile-badge" title="{{ badge.description }}">
+                                    <i class="{{ badge.icon }}"></i>
+                                    {{ badge.label }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="friend-card-actions">
+                            <button
+                                type="button"
+                                class="ghost-button js-open-message"
+                                data-username="{{ friend.username }}"
+                            >
+                                메시지
+                            </button>
+                            <button
+                                type="button"
+                                class="follow-button is-following js-follow-button"
+                                data-username="{{ friend.username }}"
+                                data-following="true"
+                            >
+                                <span class="follow-label">팔로잉</span>
+                            </button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <strong>아직 팔로우한 친구가 없어요.</strong>
+                    <p>피드에서 마음이 통하는 친구를 팔로우하면 여기에 모여요.</p>
+                </div>
+                {% endif %}
+            </section>
+        </main>
+
+        <aside class="right-rail">
+            <section class="panel-card">
+                <div class="section-head compact">
+                    <h3>추천 친구</h3>
+                </div>
+                <div class="friend-list-compact">
+                    {% for suggestion in suggestions %}
+                    <article class="friend-mini-card">
+                        <a class="avatar avatar-small avatar-ring" href="{{ url_for('public_profile', target_username=suggestion.username) }}" aria-label="{{ suggestion.pet_name }} 프로필">
+                            {% if suggestion.display_avatar_url %}
+                            <img src="{{ suggestion.display_avatar_url }}" alt="{{ suggestion.pet_name }}">
+                            {% else %}
+                            <span>{{ suggestion.initial }}</span>
+                            {% endif %}
+                        </a>
+                        <div>
+                            <a class="profile-name-link" href="{{ url_for('public_profile', target_username=suggestion.username) }}"><strong>{{ suggestion.pet_name }}</strong></a>
+                            <span>{{ suggestion.persona }}</span>
+                            <small class="match-chip">{{ suggestion.match_score }}% {{ suggestion.match_label }}</small>
+                            <small class="match-summary">{{ suggestion.match_summary }}</small>
+                            <div class="badge-row mini">
+                                {% for badge in suggestion.badges[:2] %}
+                                <span class="profile-badge" title="{{ badge.description }}">
+                                    <i class="{{ badge.icon }}"></i>
+                                    {{ badge.label }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            class="follow-button js-follow-button"
+                            data-username="{{ suggestion.username }}"
+                            data-following="false"
+                        >
+                            <span class="follow-label">팔로우</span>
+                        </button>
+                    </article>
+                    {% else %}
+                    <p class="helper-text">추천할 친구가 아직 없어요.</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <a class="ghost-button full-width" href="{{ url_for('index') }}">피드로 돌아가기</a>
+        </aside>
+    </div>
+
+    <nav class="mobile-nav">
+        <a class="mobile-nav-button" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i></a>
+        <a class="mobile-nav-button" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i></a>
+        <a class="mobile-nav-button is-active" href="{{ url_for('friends') }}"><i class="fa-solid fa-user-group"></i></a>
+    </nav>
+
+    <div class="drawer wide-drawer" id="messages-panel" aria-hidden="true">
+        <div class="drawer-head">
+            <h3>메시지</h3>
+            <button class="icon-button js-close-panel" data-close-target="messages-panel" aria-label="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="messages-layout">
+            <div class="message-thread-list" id="message-thread-list"></div>
+            <div class="message-room">
+                <div id="message-room-body" class="message-room-body"></div>
+                <div id="message-tone-preview" class="message-tone-preview" hidden></div>
+                <form id="message-form" class="message-form">
+                    <input type="text" id="message-input" placeholder="메시지를 입력하세요">
+                    <button type="submit" class="primary-button">보내기</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260525d"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<aside class="sidebar">
+    <a href="{{ url_for('index') }}" class="brand-mark brand-image-mark" aria-label="Zoo-In-Gong 홈">
+        <img class="brand-logo-image" src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+    </a>
+    <nav class="sidebar-nav">
+        {% if sidebar_variant == 'home' %}
+        <button class="nav-button is-active" data-nav-action="home"><i class="fa-solid fa-house"></i><span>홈</span></button>
+        <button class="nav-button" data-nav-action="search"><i class="fa-solid fa-magnifying-glass"></i><span>검색</span></button>
+        <button class="nav-button" data-nav-action="explore"><i class="fa-regular fa-compass"></i><span>탐색</span></button>
+        <button class="nav-button" data-nav-action="upload"><i class="fa-regular fa-square-plus"></i><span>새 게시물</span></button>
+        <a class="nav-button" href="{{ url_for('studio') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>제작소</span></a>
+        <button class="nav-button" data-nav-action="messages"><i class="fa-regular fa-paper-plane"></i><span>메시지</span></button>
+        <button class="nav-button" data-nav-action="alerts"><i class="fa-regular fa-heart"></i><span>알림</span></button>
+        <a class="nav-button" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i><span>프로필</span></a>
+        <a class="nav-button" href="{{ url_for('friends') }}"><i class="fa-solid fa-user-group"></i><span>친구</span></a>
+        {% elif sidebar_variant == 'profile' %}
+        <a class="nav-button" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i><span>홈</span></a>
+        <button class="nav-button" data-nav-action="search"><i class="fa-solid fa-magnifying-glass"></i><span>검색</span></button>
+        <button class="nav-button" data-nav-action="messages"><i class="fa-regular fa-paper-plane"></i><span>메시지</span></button>
+        <button class="nav-button" data-nav-action="alerts"><i class="fa-regular fa-heart"></i><span>알림</span></button>
+        <button class="nav-button is-active" data-nav-action="profile"><i class="fa-regular fa-circle-user"></i><span>프로필</span></button>
+        <a class="nav-button" href="{{ url_for('friends') }}"><i class="fa-solid fa-user-group"></i><span>친구</span></a>
+        <a class="nav-button" href="{{ url_for('studio') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>제작소</span></a>
+        {% else %}
+        <a class="nav-button {% if sidebar_active == 'home' %}is-active{% endif %}" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i><span>홈</span></a>
+        <a class="nav-button {% if sidebar_active == 'profile' %}is-active{% endif %}" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i><span>프로필</span></a>
+        <a class="nav-button {% if sidebar_active == 'friends' %}is-active{% endif %}" href="{{ url_for('friends') }}"><i class="fa-solid fa-user-group"></i><span>친구</span></a>
+        <a class="nav-button {% if sidebar_active == 'studio' %}is-active{% endif %}" href="{{ url_for('studio') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>제작소</span></a>
+        {% endif %}
+    </nav>
+
+    {% if sidebar_chip_button %}
+    <button class="profile-chip" data-nav-action="settings">
+    {% else %}
+    <a class="profile-chip" href="{{ url_for('profile') }}">
+    {% endif %}
+        <span class="avatar avatar-small avatar-ring">
+            {% if sidebar_profile.display_avatar_url %}
+            <img src="{{ sidebar_profile.display_avatar_url }}" alt="{{ sidebar_profile.pet_name }}">
+            {% else %}
+            <span>{{ sidebar_profile.initial }}</span>
+            {% endif %}
+        </span>
+        <span class="profile-chip-copy">
+            <strong>{{ sidebar_profile.pet_name }}</strong>
+            <small>{{ sidebar_profile.persona }}</small>
+        </span>
+    {% if sidebar_chip_button %}
+    </button>
+    {% else %}
+    </a>
+    {% endif %}
+</aside>

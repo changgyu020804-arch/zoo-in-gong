@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = '제작소 | Zoo-In-Gong' %}
+{% include 'partials/head.html' %}
+<body data-page="studio">
+    <div class="app-shell studio-shell">
+        {% set sidebar_variant = 'simple' %}
+        {% set sidebar_active = 'studio' %}
+        {% set sidebar_profile = profile %}
+        {% set sidebar_chip_button = false %}
+        {% include 'partials/app_sidebar.html' %}
+
+        <main class="content-column studio-column">
+            {% set topbar_action = none %}
+            {% set topbar_href = url_for('profile') %}
+            {% set topbar_icon = 'fa-regular fa-circle-user' %}
+            {% set topbar_label = '프로필' %}
+            {% include 'partials/mobile_topbar.html' %}
+
+            <section class="studio-board">
+                <div class="studio-canvas-panel">
+                    <div class="section-head">
+                        <div>
+                            <p class="eyebrow">제작소</p>
+                            <h1>댕댕 이모티콘</h1>
+                        </div>
+                        <div class="studio-action-row">
+                            <label class="ghost-button studio-file-button" for="studio-file-input">
+                                <i class="fa-regular fa-image"></i>
+                                사진 선택
+                            </label>
+                            <button type="button" class="primary-button js-studio-download">
+                                <i class="fa-solid fa-download"></i>
+                                PNG 저장
+                            </button>
+                        </div>
+                    </div>
+                    <input type="file" id="studio-file-input" accept="image/*">
+                    <div class="studio-canvas-frame">
+                        <canvas id="studio-canvas" width="720" height="720" aria-label="이모티콘 미리보기"></canvas>
+                    </div>
+                </div>
+
+                <div class="studio-controls">
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>배경</h3>
+                        </div>
+                        <div class="studio-swatch-grid">
+                            <button type="button" class="studio-swatch is-active" data-studio-background="cream" style="--swatch-a:#fff5df;--swatch-b:#ffd5c7" aria-label="크림 배경"></button>
+                            <button type="button" class="studio-swatch" data-studio-background="mint" style="--swatch-a:#e2f6e8;--swatch-b:#b5ddcf" aria-label="민트 배경"></button>
+                            <button type="button" class="studio-swatch" data-studio-background="sky" style="--swatch-a:#e4f2ff;--swatch-b:#acd6ff" aria-label="하늘 배경"></button>
+                            <button type="button" class="studio-swatch" data-studio-background="pink" style="--swatch-a:#ffe7ef;--swatch-b:#ffb7cd" aria-label="핑크 배경"></button>
+                            <button type="button" class="studio-swatch" data-studio-background="lime" style="--swatch-a:#f3ffd8;--swatch-b:#d9eaa2" aria-label="라임 배경"></button>
+                            <button type="button" class="studio-swatch" data-studio-background="night" style="--swatch-a:#4b587c;--swatch-b:#20263a" aria-label="밤 배경"></button>
+                        </div>
+                    </section>
+
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>문구</h3>
+                        </div>
+                        <label class="studio-text-field" for="studio-text-input">
+                            <span>문구 직접 입력</span>
+                            <input type="text" id="studio-text-input" maxlength="18" value="나 불렀개?" placeholder="예: 하기싫다">
+                        </label>
+                        <div class="studio-preset-grid">
+                            {% for text in ['나 불렀개?', '간식 협상중', '집사 어디감', '오늘도 주인공', '한 번만 더 놀자', '칭찬 대기중', '잘자라멍', '기분 최고개', '쓰담 가능', '내가 해냄'] %}
+                            <button type="button" class="studio-preset {% if loop.first %}is-active{% endif %}" data-studio-text="{{ text }}">{{ text }}</button>
+                            {% endfor %}
+                        </div>
+                    </section>
+
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>텍스트 색</h3>
+                        </div>
+                        <div class="studio-color-grid">
+                            <button type="button" class="studio-color is-active" data-studio-color="#ffffff" style="--text-color:#ffffff" aria-label="흰색"></button>
+                            <button type="button" class="studio-color" data-studio-color="#2d241e" style="--text-color:#2d241e" aria-label="검정"></button>
+                            <button type="button" class="studio-color" data-studio-color="#f05d44" style="--text-color:#f05d44" aria-label="빨강"></button>
+                            <button type="button" class="studio-color" data-studio-color="#f5bf4f" style="--text-color:#f5bf4f" aria-label="노랑"></button>
+                            <button type="button" class="studio-color" data-studio-color="#cce7db" style="--text-color:#cce7db" aria-label="민트"></button>
+                            <button type="button" class="studio-color" data-studio-color="#ff8bab" style="--text-color:#ff8bab" aria-label="핑크"></button>
+                        </div>
+                    </section>
+
+                    <section class="studio-control-group studio-sticker-library">
+                        <div class="section-head compact">
+                            <h3>인기 스티커</h3>
+                        </div>
+                        <div class="studio-sticker-grid">
+                            {% for sticker in [
+                                ('crown', '왕관', 'fa-solid fa-crown', '#ffd76a', '#7a4f18'),
+                                ('gem', '보석', 'fa-regular fa-gem', '#e46cff', '#65dcff'),
+                                ('dog', '멍멍이', 'fa-solid fa-dog', '#d6a66d', '#2d241e'),
+                                ('snack', '간식', 'fa-solid fa-drumstick-bite', '#9b5b37', '#65c469'),
+                                ('hundred', '만점', 'fa-solid fa-underline', '#ef4e38', '#fff4eb'),
+                                ('heart', '하트', 'fa-solid fa-heart', '#9b5cff', '#4fd4ff'),
+                                ('rainbow', '무지개', 'fa-solid fa-rainbow', '#ff9ab8', '#6ed7ff'),
+                                ('donut', '도넛', 'fa-solid fa-circle-dot', '#ff5fc6', '#f5d35f'),
+                                ('glasses', '안경', 'fa-solid fa-glasses', '#58c9ff', '#1f2a44'),
+                                ('wizard', '마법모자', 'fa-solid fa-hat-wizard', '#cf55d8', '#f5d35f'),
+                                ('alien', '외계멍', 'fa-solid fa-robot', '#c7eef1', '#2d241e'),
+                                ('burger', '버거', 'fa-solid fa-burger', '#d17a33', '#f5d35f'),
+                                ('bubble', '말풍선', 'fa-regular fa-comment', '#ffffff', '#2d241e'),
+                                ('lips', '입술', 'fa-solid fa-face-smile', '#ff4d62', '#8b1d2e'),
+                                ('pixelheart', '픽셀하트', 'fa-solid fa-heart', '#57c7ff', '#ffffff'),
+                                ('shades', '선글라스', 'fa-solid fa-glasses', '#91ecff', '#8b5cff')
+                            ] %}
+                            <button type="button" class="studio-sticker {% if loop.first %}is-active{% endif %}" data-studio-sticker="{{ sticker[0] }}" style="--sticker-a:{{ sticker[3] }};--sticker-b:{{ sticker[4] }}" aria-label="{{ sticker[1] }}">
+                                <i class="{{ sticker[2] }}" aria-hidden="true"></i>
+                                <span>{{ sticker[1] }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <nav class="mobile-nav">
+        <a class="mobile-nav-button" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i></a>
+        <a class="mobile-nav-button" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i></a>
+        <a class="mobile-nav-button" href="{{ url_for('friends') }}"><i class="fa-solid fa-user-group"></i></a>
+        <a class="mobile-nav-button is-active" href="{{ url_for('studio') }}"><i class="fa-solid fa-wand-magic-sparkles"></i></a>
+    </nav>
+
+    <script>
+        window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260525d"></script>
+</body>
+</html>

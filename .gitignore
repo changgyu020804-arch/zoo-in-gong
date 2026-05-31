@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.vendor/
+sitepkgs/
+.env
+database.db
+static/uploads/
+*.log
+flask-chat-server*.log
