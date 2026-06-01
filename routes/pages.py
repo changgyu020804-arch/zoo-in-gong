@@ -1,3 +1,5 @@
+import logging
+
 from flask import redirect, render_template, session, url_for
 
 from db import get_db_connection
@@ -20,12 +22,33 @@ from services import (
 from text_utils import clean_single_line_text
 
 
+logger = logging.getLogger(__name__)
+
+
 def attach_profile_summary(profile, stats):
     profile["posts_count"] = stats["posts_count"]
     profile["total_likes"] = stats["total_likes"]
     profile["friend_count"] = stats["friend_count"]
     profile["badges"] = build_profile_badges(profile)
     return profile
+
+
+def build_profile_ranking_fallback(profile, stats):
+    pet_name = profile.get("pet_name") or profile.get("username") or "멍스타"
+    return [
+        {
+            "rank": 1,
+            "pet_name": pet_name,
+            "username": profile.get("username") or "",
+            "avatar_url": profile.get("avatar_url") or "",
+            "display_avatar_url": profile.get("display_avatar_url") or "",
+            "initial": profile.get("initial") or pet_name[0].upper(),
+            "persona": profile.get("persona") or "오늘의 첫 주인공",
+            "total_likes": stats.get("total_likes") or 0,
+            "post_count": stats.get("posts_count") or 0,
+            "latest_post": None,
+        }
+    ]
 
 
 def build_page_context(page, username):
@@ -46,15 +69,29 @@ def register_page_routes(app):
             return redirect(url_for("login"))
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
+        posts = get_posts(viewer_username=username)
+        daily_awards = build_daily_awards(username)
+        like_rankings = build_like_ranking()
+        if not like_rankings:
+            like_rankings = build_profile_ranking_fallback(profile, stats)
+
+        logger.info(
+            "home_context user=%s posts=%s rankings=%s awards=%s notifications=%s",
+            username,
+            len(posts),
+            len(like_rankings),
+            len(daily_awards),
+            len(notifications),
+        )
 
         return render_template(
             "index.html",
-            posts=get_posts(viewer_username=username),
+            posts=posts,
             profile=profile,
             stats=stats,
             notifications=notifications,
-            daily_awards=build_daily_awards(username),
-            like_rankings=build_like_ranking(),
+            daily_awards=daily_awards,
+            like_rankings=like_rankings,
             daily_mission=build_daily_mission(profile),
             bootstrap=bootstrap,
         )

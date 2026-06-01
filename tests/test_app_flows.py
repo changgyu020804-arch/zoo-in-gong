@@ -484,6 +484,20 @@ def test_home_renders_persona_share_card(client):
     assert "data-traits=\"밖이 좋아요" in html
 
 
+def test_home_renders_ranking_fallback_without_posts(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "핫한 댕댕이 1등" in html
+    assert "나리" in html
+    assert "아직 선정할 게시물이 없어요." in html
+    assert "아직 피드에 게시물이 없어요." in html
+
+
 def test_studio_page_renders_canvas_maker(client):
     create_user(client, "nari", "나리")
     login_as(client, "nari")
