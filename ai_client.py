@@ -111,6 +111,8 @@ def build_effective_system_instruction(base_instruction, contents):
 
 
 def _normalize_thinking_level(thinking_level):
+    if os.environ.get("GEMINI_ENABLE_THINKING", "0") != "1":
+        return None
     if not thinking_level:
         return None
 
@@ -220,7 +222,7 @@ def _stream_text(model, contents, config):
 def generate_gemini_content(
     contents,
     system_instruction=None,
-    thinking_level="low",
+    thinking_level=None,
     use_search=False,
     response_mime_type=None,
     response_json_schema=None,
