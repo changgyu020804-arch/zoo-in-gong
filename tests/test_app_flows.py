@@ -35,11 +35,11 @@ def create_user(client, username, pet_name):
         conn.execute(
             """
             INSERT INTO users
-                (username, password, pet_name, pet_species, pet_age, persona,
+                (username, password, pet_name, pet_species, pet_age, persona, phone_number,
                  activity_level, pet_likes, pet_dislikes, personality)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (username, "pw", pet_name, "강아지", 3, "산책 리더형", "보통", "간식", "목욕", "활발"),
+            (username, "pw", pet_name, "강아지", 3, "산책 리더형", "010-1234-5678", "보통", "간식", "목욕", "활발"),
         )
         conn.commit()
 
@@ -70,6 +70,7 @@ def test_signup_creates_user_and_starts_session(client):
         data={
             "username": "nari",
             "password": "pw",
+            "phone_number": "010-1234-5678",
             "pet_name": "나리",
             "pet_species": "강아지",
             "pet_age": "2",
@@ -81,8 +82,77 @@ def test_signup_creates_user_and_starts_session(client):
     assert response.status_code == 302
     assert "/signup/complete" in response.headers["Location"]
     with client.db.get_db_connection() as conn:
-        user = conn.execute("SELECT username, pet_name FROM users WHERE username = ?", ("nari",)).fetchone()
-    assert dict(user) == {"username": "nari", "pet_name": "나리"}
+        user = conn.execute("SELECT username, pet_name, phone_number FROM users WHERE username = ?", ("nari",)).fetchone()
+    assert dict(user) == {"username": "nari", "pet_name": "나리", "phone_number": "010-1234-5678"}
+
+
+def test_signup_accepts_custom_pet_species(client):
+    response = client.post(
+        "/signup",
+        data={
+            "username": "custom",
+            "password": "pw",
+            "phone_number": "010-9999-1111",
+            "pet_name": "또리",
+            "pet_species": "기타",
+            "pet_species_other": "웰시코기",
+            "pet_age": "4",
+            "personality": "명랑",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    with client.db.get_db_connection() as conn:
+        user = conn.execute("SELECT pet_species FROM users WHERE username = ?", ("custom",)).fetchone()
+    assert user["pet_species"] == "웰시코기"
+
+
+def test_find_account_page_finds_username_and_resets_password(client):
+    create_user(client, "nari", "나리")
+
+    response = client.get("/find-account")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "아이디 찾기" in html
+    assert "비밀번호 재설정" in html
+
+    response = client.post(
+        "/find-account",
+        data={
+            "action": "find_username",
+            "pet_name": "나리",
+            "pet_species": "강아지",
+            "phone_number": "010-1234-5678",
+        },
+    )
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "아래 아이디를 찾았어요." in html
+    assert "nari" in html
+
+    response = client.post(
+        "/find-account",
+        data={
+            "action": "reset_password",
+            "username": "nari",
+            "pet_name": "나리",
+            "pet_species": "강아지",
+            "phone_number": "010-1234-5678",
+            "new_password": "newpw",
+        },
+    )
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "비밀번호를 새로 설정했어요" in html
+
+    login_response = client.post(
+        "/login",
+        data={"username": "nari", "password": "newpw"},
+        follow_redirects=False,
+    )
+    assert login_response.status_code == 302
+    assert login_response.headers["Location"].endswith("/")
 
 
 def test_upload_creates_post_with_caption(client):
@@ -329,6 +399,20 @@ def test_fallback_caption_sounds_less_like_report():
     assert "바깥 냄새" in caption
 
 
+def test_fallback_caption_does_not_force_walk_words_for_non_walk_activity():
+    from caption_ai import make_fallback_caption
+
+    caption = make_fallback_caption(
+        {"persona": "산책 리더형 간식파", "personality": "장난꾸러기", "pet_name": "콩이"},
+        "잠이 너무 온다 형이 군대옷을 입혔다",
+    )
+
+    assert "군대옷" in caption
+    assert "패션" in caption
+    assert "바깥 냄새" not in caption
+    assert "발걸음" not in caption
+
+
 def test_ai_comment_short_result_uses_fallback(monkeypatch):
     import comment_ai
 
@@ -413,9 +497,20 @@ def test_studio_page_renders_canvas_maker(client):
     assert "data-studio-background" in html
     assert "data-studio-text" in html
     assert "studio-text-input" in html
+    assert "studio-bubble-text-input" in html
+    assert "studio-bubble-size-input" in html
+    assert "문구 삭제" not in html
     assert "텍스트 위치" not in html
     assert "data-studio-color" in html
     assert "data-studio-sticker" in html
+    assert "말풍선 입력" in html
+    assert "왕관" in html
+    assert "하트" in html
+    assert "꽃" in html
+    assert "선글라스" in html
+    assert "별" in html
+    assert "뼈다귀" in html
+    assert "스티커 삭제" not in html
     assert "인기 스티커" in html
     assert "PNG 저장" in html
 

@@ -23,6 +23,11 @@
                 </label>
                 <button type="submit" class="primary-button full-width">입장하기</button>
             </form>
+            <div class="auth-help-links">
+                <a href="{{ url_for('find_account') }}">아이디 찾기</a>
+                <span aria-hidden="true">·</span>
+                <a href="{{ url_for('find_account', mode='reset_password') }}">비밀번호 재설정</a>
+            </div>
         </section>
 
         <section class="auth-switch">

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = '아이디/비밀번호 찾기 | Zoo-In-Gong' %}
+{% include 'partials/head.html' %}
+<body class="auth-page auth-page-fresh dog-world-page">
+    <main class="auth-shell finder-shell">
+        <section class="auth-card">
+            <div class="brand-mark brand-large">Zoo-In-Gong</div>
+            <p class="auth-kicker">계정 찾기</p>
+            <h1 class="auth-title">입장권을 다시 찾아볼게요</h1>
+            <p class="auth-copy">가입할 때 적은 주인공 정보를 입력하면 아이디를 찾거나 비밀번호를 새로 설정할 수 있어요.</p>
+        </section>
+
+        <section class="finder-grid">
+            <div class="auth-card">
+                <h2 class="finder-title">아이디 찾기</h2>
+                {% if username_error %}<div class="error-box">{{ username_error }}</div>{% endif %}
+                {% if username_message %}<div class="success-box">{{ username_message }}</div>{% endif %}
+                {% if found_usernames %}
+                <div class="account-result-list">
+                    {% for username in found_usernames %}
+                    <span>{{ username }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <form action="{{ url_for('find_account') }}" method="post" class="auth-form">
+                    <input type="hidden" name="action" value="find_username">
+                    <label class="field-line">
+                        <span>주인공 이름</span>
+                        <input type="text" name="pet_name" placeholder="예: 콩이" required>
+                    </label>
+                    <label class="field-line">
+                        <span>어떤 친구인가요?</span>
+                        <input type="text" name="pet_species" placeholder="예: 강아지" required>
+                    </label>
+                    <label class="field-line">
+                        <span>보호자 전화번호</span>
+                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                    </label>
+                    <button type="submit" class="primary-button full-width">아이디 찾기</button>
+                </form>
+            </div>
+
+            <div class="auth-card">
+                <h2 class="finder-title">비밀번호 재설정</h2>
+                {% if password_error %}<div class="error-box">{{ password_error }}</div>{% endif %}
+                {% if password_message %}<div class="success-box">{{ password_message }}</div>{% endif %}
+                <form action="{{ url_for('find_account') }}" method="post" class="auth-form">
+                    <input type="hidden" name="action" value="reset_password">
+                    <label class="field-line">
+                        <span>아이디</span>
+                        <input type="text" name="username" placeholder="아이디를 입력하세요" autocomplete="username" required>
+                    </label>
+                    <label class="field-line">
+                        <span>주인공 이름</span>
+                        <input type="text" name="pet_name" placeholder="예: 콩이" required>
+                    </label>
+                    <label class="field-line">
+                        <span>어떤 친구인가요?</span>
+                        <input type="text" name="pet_species" placeholder="예: 강아지" required>
+                    </label>
+                    <label class="field-line">
+                        <span>보호자 전화번호</span>
+                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                    </label>
+                    <label class="field-line">
+                        <span>새 비밀번호</span>
+                        <input type="password" name="new_password" placeholder="새 비밀번호를 입력하세요" autocomplete="new-password" required>
+                    </label>
+                    <button type="submit" class="primary-button full-width">비밀번호 새로 설정</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="auth-switch">
+            기억났다면 <a href="{{ url_for('login') }}">로그인으로 돌아가기</a>
+        </section>
+    </main>
+</body>
+</html>

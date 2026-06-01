@@ -4,7 +4,7 @@ from datetime import datetime
 
 from ai_client import generate_gemini_content
 from persona_prompt import build_persona_prompt_text
-from text_utils import normalize_ai_text
+from text_utils import meaningful_text_length, normalize_ai_text, soften_walk_terms
 
 
 logger = logging.getLogger(__name__)
@@ -93,21 +93,11 @@ def _clean_ai_comment(text, max_chars=70):
 
 
 def _is_comment_too_short(text, min_chars=8):
-    meaningful = re.sub(r"[^0-9A-Za-z가-힣]", "", normalize_ai_text(text))
-    return len(meaningful) < min_chars
+    return meaningful_text_length(text) < min_chars
 
 
 def _soften_overused_terms(text):
-    replacements = {
-        "순찰": "동네 체크",
-        "리드줄": "집사 손",
-        "코스": "우리 길",
-        "산책": "바깥 구경",
-    }
-    value = str(text or "")
-    for before, after in replacements.items():
-        value = value.replace(before, after)
-    return value
+    return soften_walk_terms(text)
 
 
 def make_fallback_comment(post):

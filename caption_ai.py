@@ -6,7 +6,7 @@ import re
 
 from ai_client import Image, client, generate_gemini_content
 from persona_prompt import build_caption_persona_prompt_text
-from text_utils import clean_multi_line_text, clean_single_line_text, normalize_ai_text
+from text_utils import clean_multi_line_text, clean_single_line_text, meaningful_text_length, normalize_ai_text
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,11 @@ CAPTION_CREATIVE_DEVICES = [
     "오늘의 표정을 박물관 전시품처럼 소개한다.",
     "강아지의 머릿속 검색 기록처럼 말하되, 검색어는 한 번만 자연스럽게 넣는다.",
     "집사에게 슬쩍 바라는 걸 말하되, 바라는 것은 칭찬/쓰담/관심 중 하나로 제한한다.",
+    "강아지가 집사에게 작은 영수증을 내미는 것처럼 쓴다. 청구 항목은 쓰담, 관심, 한 번 더 보기 중 하나다.",
+    "사진 속 표정을 강아지식 뉴스 속보처럼 다루되, 사건은 아주 작고 귀엽게 끝낸다.",
+    "집사가 모르는 강아지 내부 규칙이 있는 것처럼 말한다. 규칙은 과하지 않고 한 문장 안에서만 쓴다.",
+    "강아지가 오늘의 장면을 자체 시상식처럼 소개한다. 상 이름은 짧고 웃기게 만든다.",
+    "강아지와 꼬리가 서로 다른 의견을 낸 것처럼 쓰고, 마지막엔 꼬리가 이긴다.",
 ]
 
 CAPTION_MICRO_TWISTS = [
@@ -67,6 +72,21 @@ CAPTION_MICRO_TWISTS = [
     "카메라를 든 집사에게는 작은 칭찬을 준다.",
     "내가 봐도 이 각도는 저장감이다.",
     "오늘의 귀여움 예산은 여기서 다 썼다.",
+    "집사는 아직 모르지만, 이건 내 공식 자랑 자료다.",
+    "꼬리가 이미 집사에게 재방송을 요청했다.",
+    "내 표정 심사위원단은 전원 합격을 줬다.",
+    "집사 눈빛이 흔들린 순간, 나는 성공을 직감했다.",
+    "이 장면은 내 마음속 앨범 1번 칸에 들어갔다.",
+]
+
+CAPTION_FUNNY_ANGLES = [
+    "집사를 살짝 놀리는 농담을 한 번만 넣는다.",
+    "꼬리, 발바닥, 코끝 중 하나를 의인화해서 짧게 말하게 한다.",
+    "강아지만 아는 비밀 규칙처럼 한 문장을 만든다.",
+    "귀여운 허세를 아주 작게 넣고 바로 현실적인 감각으로 돌아온다.",
+    "집사에게 쓰담, 박수, 한 번 더 보기 중 하나를 장난스럽게 요구한다.",
+    "강아지식 시상식, 속보, 판정 중 하나의 느낌을 아주 짧게 섞는다.",
+    "활동 메모의 실제 행동을 엉뚱한 사건명처럼 바꾸되 새 장소는 만들지 않는다.",
 ]
 
 CAPTION_OPENING_BANS = [
@@ -227,6 +247,7 @@ OVERUSED_TAG_REPLACEMENTS = {
     "코스": ["오늘길", "발걸음", "우리길"],
     "산책": ["바깥구경", "발바닥시간", "동네한바퀴"],
 }
+OVERUSED_TERMS_RE = re.compile("|".join(re.escape(term) for term in OVERUSED_TERMS))
 AWKWARD_CAPTION_REPLACEMENTS = {
     "상황 파악 완료": "집사 표정은 이미 읽었어",
     "판단 완료": "알아챘어",
@@ -273,6 +294,7 @@ SNACK_TAG_REPLACEMENTS = {
     "협상": "기대",
     "한입": "코끝",
 }
+SNACK_TERMS_RE = re.compile("|".join(re.escape(term) for term in SNACK_TERMS))
 
 PERSONALITY_FALLBACK_LINES = {
     "장난꾸러기": "얌전한 척했지만 꼬리가 먼저 들킨 건 비밀이다.",
@@ -286,6 +308,10 @@ PERSONALITY_FALLBACK_LINES = {
     "똑똑한": "집사 표정을 보니 오늘도 꽤 괜찮은 선택이었던 것 같다.",
     "먹보": "맛있는 냄새 생각은 살짝 접어두고, 코 기록부터 남겨야겠다.",
 }
+
+WALK_ACTIVITY_KEYWORDS = ("산책", "공원", "바깥", "밖", "외출", "걷", "걸었", "한강", "길", "리드줄")
+OUTFIT_ACTIVITY_KEYWORDS = ("옷", "입혔", "입었", "코스튬", "군대", "모자", "목도리", "하네스")
+SLEEP_ACTIVITY_KEYWORDS = ("잠", "졸", "자는", "잔다", "피곤", "눈꺼풀")
 
 
 def is_supported_image_file(image_path):
@@ -333,7 +359,6 @@ def _has_snack_term(text):
 
 def _limit_snack_terms(text, allowed_count=1, tag=False):
     replacements = SNACK_TAG_REPLACEMENTS if tag else SNACK_TERM_REPLACEMENTS
-    pattern = re.compile("|".join(re.escape(term) for term in SNACK_TERMS))
     used = 0
 
     def replace_match(match):
@@ -344,7 +369,7 @@ def _limit_snack_terms(text, allowed_count=1, tag=False):
             return term
         return replacements.get(term, "")
 
-    return pattern.sub(replace_match, text), used
+    return SNACK_TERMS_RE.sub(replace_match, text), used
 
 
 def _soften_overused_terms(text, allowed_count=1, tag=False):
@@ -363,8 +388,7 @@ def _soften_overused_terms(text, allowed_count=1, tag=False):
         used += 1
         return replacements[index]
 
-    pattern = re.compile("|".join(re.escape(term) for term in OVERUSED_TERMS))
-    return pattern.sub(replace_match, str(text or ""))
+    return OVERUSED_TERMS_RE.sub(replace_match, str(text or ""))
 
 
 def _soften_awkward_caption_terms(text):
@@ -439,8 +463,7 @@ def _safe_limit_caption_text(text, max_chars):
 
 def is_caption_too_short(text, min_body_chars=24):
     body = HASHTAG_RE.sub("", normalize_ai_text(text))
-    body = re.sub(r"[^0-9A-Za-z가-힣]", "", body)
-    return len(body) < min_body_chars
+    return meaningful_text_length(body, normalize=False) < min_body_chars
 
 
 def sanitize_caption_text(text, max_body_lines=4, max_chars=520, snack_terms_allowed=True, fallback_hashtags=None):
@@ -517,6 +540,15 @@ def _caption_micro_twist(profile, activity_text=""):
     return CAPTION_MICRO_TWISTS[seed % len(CAPTION_MICRO_TWISTS)]
 
 
+def _caption_funny_angle(profile, activity_text=""):
+    seed_text = (
+        f"{profile.get('pet_name', '')}{profile.get('persona', '')}"
+        f"{profile.get('personality', '')}{activity_text}{datetime.now().strftime('%M%S%f')}"
+    )
+    seed = sum(ord(char) for char in seed_text)
+    return CAPTION_FUNNY_ANGLES[seed % len(CAPTION_FUNNY_ANGLES)]
+
+
 def _caption_opening_ban_hint(profile, activity_text=""):
     now = datetime.now()
     seed_text = f"{profile.get('pet_name', '')}{activity_text}{now.minute}{now.second}"
@@ -586,6 +618,19 @@ def _dog_activity_text(activity_text):
     return result
 
 
+def _activity_has_any(activity_text, keywords):
+    activity = str(activity_text or "")
+    return any(keyword in activity for keyword in keywords)
+
+
+def _fallback_activity_reaction(activity_text):
+    if _activity_has_any(activity_text, OUTFIT_ACTIVITY_KEYWORDS):
+        return "집사는 이걸 패션이라고 불렀고, 나는 일단 표정으로 심사했다."
+    if _activity_has_any(activity_text, SLEEP_ACTIVITY_KEYWORDS):
+        return "눈꺼풀은 쉬자고 했지만, 귀여움 근무는 아직 끝나지 않았다."
+    return "내 방식대로 확인해보니 이 장면도 꽤 그럴듯했다."
+
+
 def _fallback_body_line(profile, activity_text):
     persona = profile.get("persona", "")
     personality = profile.get("personality", "")
@@ -599,6 +644,8 @@ def _fallback_body_line(profile, activity_text):
             if snack_allowed
             else "집사는 내 꼬리 리듬에 맞춰 천천히 따라오라개 🐾"
         )
+        if not _activity_has_any(activity_text, WALK_ACTIVITY_KEYWORDS):
+            return f"{activity}. {_fallback_activity_reaction(activity_text)} {ending} {personality_line}"
         return (
             f"{activity}. 바깥 냄새도 좋고 발걸음도 가벼웠으니, "
             f"{ending} {personality_line}"
@@ -645,6 +692,11 @@ def make_fallback_caption(profile, activity_text=""):
     twist = _caption_micro_twist(profile, activity_text)
     if twist and twist not in body and len(body) < 260:
         body = f"{body} {twist}"
+    funny_angle = _caption_funny_angle(profile, activity_text)
+    if "쓰담" in funny_angle and "쓰담" not in body and len(body) < 280:
+        body = f"{body} 집사는 쓰담 담당으로 잠깐 대기해도 좋다개."
+    elif "꼬리" in funny_angle and "꼬리" not in body and len(body) < 280:
+        body = f"{body} 꼬리는 벌써 합격이라고 흔들렸다."
     hashtags = " ".join(_caption_hashtag_hint(profile, activity_text).split()[:3])
     return f"{body}\n{hashtags}"
 
@@ -660,6 +712,7 @@ def generate_caption(image_path, profile, activity_text="", analysis=None):
     variation_hint = _caption_variation_hint(profile, activity_text)
     creative_device = _caption_creative_device_hint(profile, activity_text)
     micro_twist = _caption_micro_twist(profile, activity_text)
+    funny_angle = _caption_funny_angle(profile, activity_text)
     opening_bans = _caption_opening_ban_hint(profile, activity_text)
     snack_allowed = _snack_mentions_allowed(profile, activity_text)
     hashtag_hint = _caption_hashtag_hint(profile, activity_text)
@@ -684,6 +737,8 @@ def generate_caption(image_path, profile, activity_text="", analysis=None):
 - "순찰", "산책", "리드줄", "코스" 같은 표현은 합쳐서 최대 1번만 쓴다. 대신 바깥 구경, 동네 한 바퀴, 함께 걷는 길, 발걸음, 꼬리 리듬처럼 자연스럽게 바꿔 쓴다.
 - "작전", "회의", "보고서", "상황 파악 완료", "냄새 지도", "발바닥 컨디션", "관리팀"처럼 딱딱하거나 이상한 표현은 쓰지 않는다.
 - 반복되는 군대식 보고 말투보다 엉뚱한 오해, 작은 허세, 집사에게 하는 농담, 꼬리/표정/발걸음 반응을 더 많이 쓴다.
+- 평범한 감탄문으로 끝내지 말고, 강아지식 오해나 짧은 반전이 한 번은 느껴지게 쓴다.
+- 재미 장치는 한 가지로만 제한한다. 웃기려고 활동 메모에 없는 장소, 물건, 사건을 만들지 않는다.
 - 해시태그는 후보에서 2개만 고르되, 매번 같은 조합을 반복하지 말고 페르소나 태그 1개 + 상황/감정 태그 1개처럼 섞는다.
 - 해시태그에는 띄어쓰기와 긴 문장을 넣지 않는다.
 
@@ -691,6 +746,7 @@ def generate_caption(image_path, profile, activity_text="", analysis=None):
 - 스타일: {variation_hint}
 - 장난스러운 장치: {creative_device}
 - 미니 반전: {micro_twist}
+- 재미 각도: {funny_angle}
 - 다양성 seed: {creative_seed}
 - 간식 표현 규칙: {snack_guidance}
 
@@ -723,9 +779,9 @@ def generate_caption(image_path, profile, activity_text="", analysis=None):
                 [prompt, image],
                 system_instruction=CAPTION_SYSTEM_INSTRUCTION,
                 use_search=False,
-                temperature=1.08,
-                top_p=0.96,
-                max_output_tokens=360,
+                temperature=1.14,
+                top_p=0.98,
+                max_output_tokens=390,
             )
 
         raw_text = (response.text or "").strip()

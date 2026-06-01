@@ -1,6 +1,6 @@
 import re
 
-from text_utils import clean_single_line_text
+from text_utils import clean_single_line_text, meaningful_text_length, soften_walk_terms
 
 
 COMMON_REWRITES = {
@@ -53,13 +53,6 @@ FOCUS_FLAVORS = {
     "놀이파": ["장난감도 같이 출동하개", "한 번 더 놀 준비 됐멍", "발바닥 엔진 예열 끝났개"],
 }
 
-OVERUSED_TERMS = ("순찰", "리드줄", "코스", "산책")
-OVERUSED_TERM_REPLACEMENTS = {
-    "순찰": "동네 체크",
-    "리드줄": "집사 손",
-    "코스": "우리 길",
-    "산책": "바깥 구경",
-}
 SHORT_TONE_ENDINGS = (
     "꼬리로 바로 접수했개",
     "발바닥까지 기분이 전해졌멍",
@@ -145,15 +138,11 @@ def _dedupe(items, limit=3):
 
 
 def _soften_overused_terms(text):
-    value = str(text or "")
-    for term, replacement in OVERUSED_TERM_REPLACEMENTS.items():
-        value = value.replace(term, replacement)
-    return value
+    return soften_walk_terms(text)
 
 
 def _is_tone_too_short(text, min_chars=8):
-    meaningful = re.sub(r"[^0-9A-Za-z가-힣]", "", str(text or ""))
-    return len(meaningful) < min_chars
+    return meaningful_text_length(text, normalize=False) < min_chars
 
 
 def _expand_short_tone(text, seed=0):

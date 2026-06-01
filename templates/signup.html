@@ -27,6 +27,10 @@
                         <span>비밀 간식 번호</span>
                         <input type="password" name="password" placeholder="비밀번호를 입력하세요" autocomplete="new-password" required>
                     </label>
+                    <label class="field-line">
+                        <span>보호자 전화번호</span>
+                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                    </label>
                 </div>
             </section>
 
@@ -38,10 +42,22 @@
                         <span>이름</span>
                         <input type="text" name="pet_name" placeholder="예: 콩이" required>
                     </label>
-                    <label class="field-line">
-                        <span>어떤 친구인가요?</span>
-                        <input type="text" name="pet_species" placeholder="예: 푸들, 고양이, 햄스터" required>
-                    </label>
+                    <fieldset class="field-line species-field">
+                        <legend>어떤 친구인가요?</legend>
+                        <div class="species-choice-grid">
+                            {% for species in ['푸들', '말티즈', '포메라니안', '시츄', '비숑', '치와와', '진돗개', '믹스견'] %}
+                            <label class="tag-choice">
+                                <input type="radio" name="pet_species" value="{{ species }}" required>
+                                <span>{{ species }}</span>
+                            </label>
+                            {% endfor %}
+                            <label class="tag-choice">
+                                <input type="radio" name="pet_species" value="기타" required id="petSpeciesOtherRadio">
+                                <span>기타</span>
+                            </label>
+                        </div>
+                        <input type="text" name="pet_species_other" id="petSpeciesOtherInput" class="is-hidden" placeholder="직접 입력">
+                    </fieldset>
                 </div>
             </section>
 
@@ -153,6 +169,8 @@
         const currentStepLabel = document.getElementById("currentStep");
         const totalStepLabel = document.getElementById("totalStep");
         const meter = document.querySelector(".step-meter span");
+        const speciesOtherRadio = document.getElementById("petSpeciesOtherRadio");
+        const speciesOtherInput = document.getElementById("petSpeciesOtherInput");
         let currentStep = 0;
 
         totalStepLabel.textContent = steps.length;
@@ -178,6 +196,15 @@
             return fields.every((field) => field.reportValidity());
         }
 
+        function syncSpeciesOtherInput() {
+            if (!speciesOtherInput) return false;
+            const showOther = speciesOtherRadio && speciesOtherRadio.checked;
+            speciesOtherInput.classList.toggle("is-hidden", !showOther);
+            speciesOtherInput.required = showOther;
+            if (!showOther) speciesOtherInput.value = "";
+            return showOther;
+        }
+
         nextButton.addEventListener("click", () => {
             if (validateCurrentStep()) {
                 setStep(currentStep + 1);
@@ -191,8 +218,11 @@
         steps.forEach((step, stepIndex) => {
             step.querySelectorAll(".tag-choice input").forEach((input) => {
                 input.addEventListener("change", () => {
+                    const waitsForOtherInput = input.name === "pet_species" && syncSpeciesOtherInput();
                     if (stepIndex === currentStep && stepIndex < steps.length - 1) {
-                        window.setTimeout(() => setStep(currentStep + 1), 180);
+                        if (!waitsForOtherInput) {
+                            window.setTimeout(() => setStep(currentStep + 1), 180);
+                        }
                     }
                 });
             });

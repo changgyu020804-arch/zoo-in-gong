@@ -11,6 +11,13 @@ NAMED_ENTITY_VALUES = {
     "lt": "<",
     "gt": ">",
 }
+MEANINGFUL_TEXT_RE = re.compile(r"[^0-9A-Za-z가-힣]")
+WALK_TERM_REPLACEMENTS = {
+    "순찰": "동네 체크",
+    "리드줄": "집사 손",
+    "코스": "우리 길",
+    "산책": "바깥 구경",
+}
 
 
 def _decode_numeric_entity(match):
@@ -36,6 +43,23 @@ def normalize_ai_text(value):
     text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
     return text.strip()
+
+
+def meaningful_text_length(value, normalize=True):
+    text = normalize_ai_text(value) if normalize else str(value or "")
+    return len(MEANINGFUL_TEXT_RE.sub("", text))
+
+
+def replace_terms(value, replacements):
+    text = str(value or "")
+    for before, after in replacements.items():
+        text = text.replace(before, after)
+    return text
+
+
+def soften_walk_terms(value):
+    return replace_terms(value, WALK_TERM_REPLACEMENTS)
+
 
 def clean_single_line_text(value, max_length=120):
     cleaned = re.sub(r"\s+", " ", normalize_ai_text(value)).strip()

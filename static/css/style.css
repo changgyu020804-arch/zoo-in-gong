@@ -870,6 +870,14 @@ textarea:focus {
     filter: drop-shadow(0 3px 0 rgba(255, 255, 255, 0.35));
 }
 
+.studio-sticker-preview {
+    width: 82%;
+    height: 82%;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 5px 8px rgba(44, 49, 65, 0.16));
+}
+
 .studio-sticker span {
     position: absolute;
     width: 1px;
@@ -2471,6 +2479,16 @@ button.grid-post {
     gap: 14px;
 }
 
+.finder-shell {
+    width: min(880px, 100%);
+}
+
+.finder-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
 .auth-card {
     border-radius: 28px;
     padding: 32px;
@@ -2497,6 +2515,20 @@ button.grid-post {
     font-weight: 700;
 }
 
+.auth-help-links {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 0.94rem;
+    font-weight: 700;
+}
+
+.auth-help-links a {
+    color: var(--accent-strong);
+}
+
 .error-box {
     margin-bottom: 16px;
     padding: 12px 14px;
@@ -2504,6 +2536,40 @@ button.grid-post {
     background: rgba(255, 107, 87, 0.12);
     color: #c53f2b;
     font-weight: 600;
+}
+
+.success-box {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(101, 196, 105, 0.14);
+    color: #38743c;
+    font-weight: 700;
+}
+
+.finder-title {
+    margin: 0 0 16px;
+    font-family: "Jua", "Pretendard", sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0;
+}
+
+.account-result-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.account-result-list span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255, 107, 87, 0.12);
+    color: var(--accent-strong);
+    font-weight: 900;
 }
 
 .auth-page-fresh {
@@ -2649,6 +2715,28 @@ button.grid-post {
 
 .field-line span {
     color: var(--text);
+}
+
+.species-field {
+    border: 0;
+    padding: 0;
+    margin: 0;
+}
+
+.species-field legend {
+    color: var(--text);
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.species-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.species-field > input[type="text"] {
+    margin-top: 10px;
 }
 
 .signup-flow-page {
@@ -3084,6 +3172,10 @@ button.grid-post {
 }
 
 @media (max-width: 860px) {
+    .finder-grid {
+        grid-template-columns: 1fr;
+    }
+
     .app-shell {
         grid-template-columns: 1fr;
         padding: 0 14px 88px;

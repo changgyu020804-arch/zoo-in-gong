@@ -754,7 +754,7 @@
         context.fill();
     }
 
-    function studioDrawSticker(context, type, x = 560, y = 150, scale = 1, rotation = 0) {
+    function studioDrawSticker(context, type, x = 560, y = 150, scale = 1, rotation = 0, assets = {}) {
         context.save();
         context.translate(x, y);
         context.rotate(rotation);
@@ -763,7 +763,62 @@
         context.lineWidth = 8;
         context.lineCap = "round";
         context.lineJoin = "round";
-        if (type === "crown") {
+        if (type.startsWith("image")) {
+            const image = assets.imageStickers?.[type];
+            if (image && image.complete && image.naturalWidth > 0) {
+                const size = assets.stickerSize?.(type, 1) || { width: 260, height: 236 };
+                const maxWidth = size.width;
+                const maxHeight = size.height;
+                const ratio = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+                const drawWidth = image.naturalWidth * ratio;
+                const drawHeight = image.naturalHeight * ratio;
+                context.drawImage(image, 560 - drawWidth / 2, 150 - drawHeight / 2, drawWidth, drawHeight);
+            }
+        } else if (type === "speechbubble") {
+            const image = assets.speechBubbleImage;
+            if (image && image.complete && image.naturalWidth > 0) {
+                context.drawImage(image, 395, 40, 330, 233);
+            } else {
+                drawRoundedRect(context, 404, 76, 270, 156, 78, "#ffffff");
+                context.strokeStyle = "#111111";
+                context.lineWidth = 8;
+                context.stroke();
+                context.beginPath();
+                context.moveTo(642, 86);
+                context.lineTo(700, 24);
+                context.lineTo(668, 118);
+                context.stroke();
+            }
+
+            context.fillStyle = "#2d241e";
+            const bubbleTextSize = Math.max(18, Math.min(48, Number(assets.bubbleTextSize) || 28));
+            const bubbleLineHeight = bubbleTextSize * 1.22;
+            context.font = `900 ${bubbleTextSize}px Jua, Pretendard, sans-serif`;
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            const bubbleText = String(assets.bubbleText || "").trim() || "여기에 입력";
+            const lines = [];
+            let line = "";
+            for (const char of bubbleText) {
+                const nextLine = `${line}${char}`;
+                if (context.measureText(nextLine).width <= 216) {
+                    line = nextLine;
+                } else {
+                    if (line) lines.push(line);
+                    line = char;
+                }
+            }
+            if (line) lines.push(line);
+            const outputLines = lines.slice(0, 3);
+            if (lines.length > 3) {
+                outputLines[2] = fitCanvasText(context, outputLines[2], 206);
+            }
+            const startY = 159 - ((outputLines.length - 1) * bubbleLineHeight) / 2;
+            outputLines.forEach((lineText, index) => {
+                context.fillText(lineText, 552, startY + index * bubbleLineHeight);
+            });
+            context.textBaseline = "alphabetic";
+        } else if (type === "crown") {
             context.fillStyle = "#f5bf4f";
             context.strokeStyle = "#7a4f18";
             context.beginPath();
@@ -1055,21 +1110,38 @@
         if (!canvas) return;
 
         const context = canvas.getContext("2d");
+        const backgroundButtons = document.querySelectorAll("[data-studio-background]");
+        const textPresetButtons = document.querySelectorAll("[data-studio-text]");
+        const colorButtons = document.querySelectorAll("[data-studio-color]");
+        const stickerButtons = document.querySelectorAll("[data-studio-sticker]");
+        const downloadButtons = document.querySelectorAll(".js-studio-download");
+        const textInput = document.getElementById("studio-text-input");
+        const bubbleTextInput = document.getElementById("studio-bubble-text-input");
+        const bubbleSizeInput = document.getElementById("studio-bubble-size-input");
+        const fileInput = document.getElementById("studio-file-input");
+        const speechBubbleImage = document.getElementById("studio-speech-bubble-asset");
+        const imageStickers = {
+            imagecrown: document.getElementById("studio-crown-sticker-asset"),
+            imageheart: document.getElementById("studio-heart-sticker-asset"),
+            imageflower: document.getElementById("studio-flower-sticker-asset"),
+            imageglasses: document.getElementById("studio-glasses-sticker-asset"),
+            imagestar: document.getElementById("studio-star-sticker-asset"),
+            imagebone: document.getElementById("studio-bone-sticker-asset"),
+        };
+        let stickerCounter = 0;
         const state = {
             image: null,
             background: "cream",
             text: "나 불렀개?",
+            showText: true,
             textColor: "#ffffff",
             textX: 360,
             textY: 520,
             textSize: 58,
             textRotation: 0,
-            sticker: "crown",
-            stickerX: 560,
-            stickerY: 150,
-            stickerScale: 1,
-            stickerRotation: 0,
+            stickers: [],
             selectedElement: "text",
+            selectedStickerId: null,
         };
         const backgrounds = {
             cream: ["#fff5df", "#ffd5c7"],
@@ -1081,22 +1153,57 @@
         };
         const layout = {
             text: null,
-            sticker: null,
             textHandle: null,
-            stickerHandle: null,
             textRotateHandle: null,
-            stickerRotateHandle: null,
+            textDeleteHandle: null,
+            stickers: new Map(),
         };
-        const backgroundButtons = document.querySelectorAll("[data-studio-background]");
-        const textPresetButtons = document.querySelectorAll("[data-studio-text]");
-        const colorButtons = document.querySelectorAll("[data-studio-color]");
-        const stickerButtons = document.querySelectorAll("[data-studio-sticker]");
-        const downloadButtons = document.querySelectorAll(".js-studio-download");
-        const textInput = document.getElementById("studio-text-input");
-        const fileInput = document.getElementById("studio-file-input");
 
         function clampStudioValue(value, min, max) {
             return Math.max(min, Math.min(max, value));
+        }
+
+        function stickerSize(type, scale = 1) {
+            if (type === "speechbubble") return { width: 330 * scale, height: 233 * scale };
+            if (type === "imageglasses") return { width: 330 * scale, height: 140 * scale };
+            if (type === "imagebone") return { width: 330 * scale, height: 186 * scale };
+            if (type.startsWith("image")) return { width: 260 * scale, height: 250 * scale };
+            return { width: 224 * scale, height: 224 * scale };
+        }
+
+        function makeSticker(type, options = {}) {
+            const offset = (stickerCounter % 5) * 28;
+            stickerCounter += 1;
+            return {
+                id: `sticker-${Date.now()}-${stickerCounter}`,
+                type,
+                x: clampStudioValue(options.x ?? 560 - offset, 140, 610),
+                y: clampStudioValue(options.y ?? 150 + offset, 120, 610),
+                scale: options.scale ?? 1,
+                rotation: options.rotation ?? 0,
+                bubbleText: bubbleTextInput?.value || "여기에 입력",
+                bubbleTextSize: clampStudioValue(Number(bubbleSizeInput?.value) || 28, 18, 48),
+            };
+        }
+
+        function selectedSticker() {
+            return state.stickers.find((sticker) => sticker.id === state.selectedStickerId) || null;
+        }
+
+        function updateStickerButtons() {
+            const sticker = selectedSticker();
+            stickerButtons.forEach((button) => {
+                button.classList.toggle("is-active", Boolean(sticker && button.dataset.studioSticker === sticker.type));
+            });
+        }
+
+        function addSticker(type) {
+            const sticker = makeSticker(type || "imagecrown");
+            state.stickers.push(sticker);
+            state.selectedElement = "sticker";
+            state.selectedStickerId = sticker.id;
+            updateStickerButtons();
+            renderStudioCanvas();
         }
 
         function rectCenter(rect) {
@@ -1122,12 +1229,7 @@
             const size = 30;
             const center = rectCenter(rect);
             const handleCenter = rotatePoint(rect.x + rect.width, rect.y + rect.height, center.x, center.y, rect.rotation || 0);
-            return {
-                x: handleCenter.x - size / 2,
-                y: handleCenter.y - size / 2,
-                width: size,
-                height: size,
-            };
+            return { x: handleCenter.x - size / 2, y: handleCenter.y - size / 2, width: size, height: size };
         }
 
         function rotateHandleRect(rect) {
@@ -1138,12 +1240,15 @@
             if (handleCenter.y < size || handleCenter.x < size || handleCenter.x > canvas.width - size) {
                 handleCenter = rotatePoint(rect.x + rect.width / 2, rect.y + rect.height + 58, center.x, center.y, rect.rotation || 0);
             }
-            return {
-                x: handleCenter.x - size / 2,
-                y: handleCenter.y - size / 2,
-                width: size,
-                height: size,
-            };
+            return { x: handleCenter.x - size / 2, y: handleCenter.y - size / 2, width: size, height: size };
+        }
+
+        function deleteHandleRect(rect) {
+            if (!rect) return null;
+            const size = 32;
+            const center = rectCenter(rect);
+            const handleCenter = rotatePoint(rect.x, rect.y, center.x, center.y, rect.rotation || 0);
+            return { x: handleCenter.x - size / 2, y: handleCenter.y - size / 2, width: size, height: size };
         }
 
         function pointHitsRotatedRect(point, rect) {
@@ -1158,10 +1263,16 @@
             );
         }
 
+        function pointHitsRect(point, rect) {
+            if (!rect) return false;
+            return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+        }
+
         function drawStudioSelection(rect) {
             if (!rect) return;
             const handle = resizeHandleRect(rect);
             const rotateHandle = rotateHandleRect(rect);
+            const deleteHandle = deleteHandleRect(rect);
             const center = rectCenter(rect);
             context.save();
             context.translate(center.x, center.y);
@@ -1191,11 +1302,17 @@
             context.arc(rotateHandle.x + rotateHandle.width / 2, rotateHandle.y + rotateHandle.height / 2, rotateHandle.width / 2, 0, Math.PI * 2);
             context.fill();
             context.stroke();
+            context.fillStyle = "#ef4e38";
+            context.beginPath();
+            context.arc(deleteHandle.x + deleteHandle.width / 2, deleteHandle.y + deleteHandle.height / 2, deleteHandle.width / 2, 0, Math.PI * 2);
+            context.fill();
+            context.stroke();
             context.fillStyle = "#ffffff";
             context.font = "900 18px Jua, Pretendard, sans-serif";
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillText("↻", rotateHandle.x + rotateHandle.width / 2, rotateHandle.y + rotateHandle.height / 2 + 1);
+            context.fillText("×", deleteHandle.x + deleteHandle.width / 2, deleteHandle.y + deleteHandle.height / 2 + 1);
             context.textBaseline = "alphabetic";
             context.restore();
         }
@@ -1211,14 +1328,11 @@
                 gradient.addColorStop(1, b);
                 context.fillStyle = gradient;
                 context.fillRect(0, 0, canvas.width, canvas.height);
-
                 context.fillStyle = "rgba(255,255,255,0.26)";
                 context.beginPath();
                 context.arc(90, 84, 116, 0, Math.PI * 2);
                 context.arc(638, 112, 92, 0, Math.PI * 2);
                 context.fill();
-
-                context.fillStyle = "rgba(255,255,255,0.82)";
                 drawRoundedRect(context, 130, 96, 460, 460, 58, "rgba(255,255,255,0.82)");
                 context.fillStyle = "#cf412d";
                 context.font = "900 54px Jua, Pretendard, sans-serif";
@@ -1226,56 +1340,71 @@
                 context.fillText("사진", 360, 336);
             }
 
-            layout.sticker = {
-                x: state.stickerX - 112 * state.stickerScale,
-                y: state.stickerY - 112 * state.stickerScale,
-                width: 224 * state.stickerScale,
-                height: 224 * state.stickerScale,
-                rotation: state.stickerRotation,
-            };
-            layout.stickerHandle = resizeHandleRect(layout.sticker);
-            layout.stickerRotateHandle = rotateHandleRect(layout.sticker);
-            studioDrawSticker(context, state.sticker, state.stickerX, state.stickerY, state.stickerScale, state.stickerRotation);
+            layout.stickers.clear();
+            state.stickers.forEach((sticker) => {
+                const bounds = stickerSize(sticker.type, sticker.scale);
+                const rect = {
+                    x: sticker.x - bounds.width / 2,
+                    y: sticker.y - bounds.height / 2,
+                    width: bounds.width,
+                    height: bounds.height,
+                    rotation: sticker.rotation,
+                };
+                rect.resizeHandle = resizeHandleRect(rect);
+                rect.rotateHandle = rotateHandleRect(rect);
+                rect.deleteHandle = deleteHandleRect(rect);
+                layout.stickers.set(sticker.id, rect);
+                studioDrawSticker(context, sticker.type, sticker.x, sticker.y, sticker.scale, sticker.rotation, {
+                    speechBubbleImage,
+                    imageStickers,
+                    stickerSize,
+                    bubbleText: sticker.bubbleText,
+                    bubbleTextSize: sticker.bubbleTextSize,
+                });
+            });
 
-            context.font = `900 ${state.textSize}px Jua, Pretendard, sans-serif`;
-            context.textAlign = "center";
-            context.textBaseline = "middle";
-            const maxTextWidth = canvas.width - 52;
-            const memeText = fitCanvasText(context, state.text || " ", maxTextWidth - state.textSize);
-            const textWidth = clampStudioValue(context.measureText(memeText).width + state.textSize * 0.86, 96, maxTextWidth);
-            const labelHeight = clampStudioValue(state.textSize * 1.34, 44, 160);
-            const labelX = Math.max(26, Math.min(canvas.width - textWidth - 26, state.textX - textWidth / 2));
-            const labelY = Math.max(26, Math.min(canvas.height - labelHeight - 46, state.textY - labelHeight / 2));
-            layout.text = {
-                x: labelX,
-                y: labelY,
-                width: textWidth,
-                height: labelHeight,
-                rotation: state.textRotation,
-            };
-            layout.textHandle = resizeHandleRect(layout.text);
-            layout.textRotateHandle = rotateHandleRect(layout.text);
-            const labelCenter = rectCenter(layout.text);
-            context.save();
-            context.translate(labelCenter.x, labelCenter.y);
-            context.rotate(state.textRotation);
-            drawRoundedRect(context, -textWidth / 2, -labelHeight / 2, textWidth, labelHeight, 8, "rgba(0,0,0,0.72)");
-            context.fillStyle = state.textColor;
-            context.fillText(memeText, 0, 3);
-            context.restore();
-            context.textBaseline = "alphabetic";
+            if (state.showText) {
+                context.font = `900 ${state.textSize}px Jua, Pretendard, sans-serif`;
+                context.textAlign = "center";
+                context.textBaseline = "middle";
+                const maxTextWidth = canvas.width - 52;
+                const memeText = fitCanvasText(context, state.text || " ", maxTextWidth - state.textSize);
+                const textWidth = clampStudioValue(context.measureText(memeText).width + state.textSize * 0.86, 96, maxTextWidth);
+                const labelHeight = clampStudioValue(state.textSize * 1.34, 44, 160);
+                const labelX = Math.max(26, Math.min(canvas.width - textWidth - 26, state.textX - textWidth / 2));
+                const labelY = Math.max(26, Math.min(canvas.height - labelHeight - 46, state.textY - labelHeight / 2));
+                layout.text = { x: labelX, y: labelY, width: textWidth, height: labelHeight, rotation: state.textRotation };
+                layout.textHandle = resizeHandleRect(layout.text);
+                layout.textRotateHandle = rotateHandleRect(layout.text);
+                layout.textDeleteHandle = deleteHandleRect(layout.text);
+                layout.text.resizeHandle = layout.textHandle;
+                layout.text.rotateHandle = layout.textRotateHandle;
+                layout.text.deleteHandle = layout.textDeleteHandle;
+                const labelCenter = rectCenter(layout.text);
+                context.save();
+                context.translate(labelCenter.x, labelCenter.y);
+                context.rotate(state.textRotation);
+                drawRoundedRect(context, -textWidth / 2, -labelHeight / 2, textWidth, labelHeight, 8, "rgba(0,0,0,0.72)");
+                context.fillStyle = state.textColor;
+                context.fillText(memeText, 0, 3);
+                context.restore();
+                context.textBaseline = "alphabetic";
+            } else {
+                layout.text = null;
+                layout.textHandle = null;
+                layout.textRotateHandle = null;
+                layout.textDeleteHandle = null;
+            }
 
             context.fillStyle = state.background === "night" ? "rgba(255,255,255,0.82)" : "rgba(104,69,54,0.78)";
             context.font = "900 24px Jua, Pretendard, sans-serif";
             context.fillText("Zoo-In-Gong", 360, 704);
 
-            if (showControls) {
-                drawStudioSelection(state.selectedElement === "sticker" ? layout.sticker : layout.text);
+            if (showControls && state.selectedElement === "text" && state.showText) {
+                drawStudioSelection(layout.text);
+            } else if (showControls && state.selectedElement === "sticker") {
+                drawStudioSelection(layout.stickers.get(state.selectedStickerId));
             }
-        }
-
-        function setActive(nodes, target) {
-            nodes.forEach((node) => node.classList.toggle("is-active", node === target));
         }
 
         function canvasPointFromEvent(event) {
@@ -1286,59 +1415,88 @@
             };
         }
 
-        function pointHitsRect(point, rect) {
-            if (!rect) return false;
-            return (
-                point.x >= rect.x &&
-                point.x <= rect.x + rect.width &&
-                point.y >= rect.y &&
-                point.y <= rect.y + rect.height
-            );
+        function deleteSelectedSticker() {
+            state.stickers = state.stickers.filter((sticker) => sticker.id !== state.selectedStickerId);
+            const nextSticker = state.stickers[state.stickers.length - 1] || null;
+            state.selectedStickerId = nextSticker?.id || null;
+            state.selectedElement = nextSticker ? "sticker" : state.showText ? "text" : "sticker";
+            updateStickerButtons();
+            renderStudioCanvas();
         }
 
         let activeDrag = null;
 
         canvas.addEventListener("pointerdown", (event) => {
             const point = canvasPointFromEvent(event);
-            const selectedRect = state.selectedElement === "sticker" ? layout.sticker : layout.text;
-            const selectedHandle = state.selectedElement === "sticker" ? layout.stickerHandle : layout.textHandle;
-            const selectedRotateHandle = state.selectedElement === "sticker" ? layout.stickerRotateHandle : layout.textRotateHandle;
-            if (pointHitsRect(point, selectedRotateHandle)) {
-                const center = rectCenter(selectedRect);
+            if (state.selectedElement === "text" && state.showText && pointHitsRect(point, layout.textDeleteHandle)) {
+                state.showText = false;
+                state.selectedElement = state.stickers.length ? "sticker" : "text";
+                state.selectedStickerId = state.stickers[state.stickers.length - 1]?.id || null;
+                textPresetButtons.forEach((preset) => preset.classList.remove("is-active"));
+                renderStudioCanvas();
+                return;
+            }
+            if (state.selectedElement === "text" && state.showText && pointHitsRect(point, layout.textRotateHandle)) {
+                const center = rectCenter(layout.text);
                 activeDrag = {
                     mode: "rotate",
-                    target: state.selectedElement,
+                    target: "text",
                     centerX: center.x,
                     centerY: center.y,
                     startAngle: Math.atan2(point.y - center.y, point.x - center.x),
-                    startRotation: state.selectedElement === "sticker" ? state.stickerRotation : state.textRotation,
+                    startRotation: state.textRotation,
                 };
-            } else if (pointHitsRect(point, selectedHandle)) {
+            } else if (state.selectedElement === "text" && state.showText && pointHitsRect(point, layout.textHandle)) {
                 activeDrag = {
                     mode: "resize",
-                    target: state.selectedElement,
+                    target: "text",
                     startX: point.x,
                     startY: point.y,
                     startTextSize: state.textSize,
-                    startStickerScale: state.stickerScale,
                 };
-            } else if (pointHitsRotatedRect(point, layout.text)) {
+            }
+            if (state.selectedElement === "sticker") {
+                const selectedRect = layout.stickers.get(state.selectedStickerId);
+                if (pointHitsRect(point, selectedRect?.deleteHandle)) {
+                    deleteSelectedSticker();
+                    return;
+                }
+                if (selectedRect && pointHitsRect(point, selectedRect.rotateHandle)) {
+                    const center = rectCenter(selectedRect);
+                    const sticker = selectedSticker();
+                    activeDrag = {
+                        mode: "rotate",
+                        target: "sticker",
+                        stickerId: sticker.id,
+                        centerX: center.x,
+                        centerY: center.y,
+                        startAngle: Math.atan2(point.y - center.y, point.x - center.x),
+                        startRotation: sticker.rotation,
+                    };
+                } else if (selectedRect && pointHitsRect(point, selectedRect.resizeHandle)) {
+                    const sticker = selectedSticker();
+                    activeDrag = { mode: "resize", target: "sticker", stickerId: sticker.id, startX: point.x, startY: point.y, startStickerScale: sticker.scale };
+                }
+            }
+            if (!activeDrag) {
+                for (let index = state.stickers.length - 1; index >= 0; index -= 1) {
+                    const sticker = state.stickers[index];
+                    const rect = layout.stickers.get(sticker.id);
+                    if (pointHitsRotatedRect(point, rect)) {
+                        state.selectedElement = "sticker";
+                        state.selectedStickerId = sticker.id;
+                        activeDrag = { mode: "move", target: "sticker", stickerId: sticker.id, offsetX: point.x - sticker.x, offsetY: point.y - sticker.y };
+                        updateStickerButtons();
+                        break;
+                    }
+                }
+            }
+            if (!activeDrag && state.showText && pointHitsRotatedRect(point, layout.text)) {
                 state.selectedElement = "text";
+                state.selectedStickerId = null;
+                updateStickerButtons();
                 const center = rectCenter(layout.text);
-                activeDrag = {
-                    mode: "move",
-                    target: "text",
-                    offsetX: point.x - center.x,
-                    offsetY: point.y - center.y,
-                };
-            } else if (pointHitsRotatedRect(point, layout.sticker)) {
-                state.selectedElement = "sticker";
-                activeDrag = {
-                    mode: "move",
-                    target: "sticker",
-                    offsetX: point.x - state.stickerX,
-                    offsetY: point.y - state.stickerY,
-                };
+                activeDrag = { mode: "move", target: "text", offsetX: point.x - center.x, offsetY: point.y - center.y };
             }
             if (!activeDrag) return;
             event.preventDefault();
@@ -1350,13 +1508,17 @@
         canvas.addEventListener("pointermove", (event) => {
             const point = canvasPointFromEvent(event);
             if (!activeDrag) {
-                const selectedRotateHandle = state.selectedElement === "sticker" ? layout.stickerRotateHandle : layout.textRotateHandle;
-                const selectedHandle = state.selectedElement === "sticker" ? layout.stickerHandle : layout.textHandle;
-                if (pointHitsRect(point, selectedRotateHandle)) {
+                const selectedRect = state.selectedElement === "sticker" ? layout.stickers.get(state.selectedStickerId) : layout.text;
+                if (pointHitsRect(point, selectedRect?.deleteHandle)) {
+                    canvas.style.cursor = "pointer";
+                } else if (pointHitsRect(point, selectedRect?.rotateHandle || layout.textRotateHandle)) {
                     canvas.style.cursor = "grab";
-                } else if (pointHitsRect(point, selectedHandle)) {
+                } else if (pointHitsRect(point, selectedRect?.resizeHandle || layout.textHandle)) {
                     canvas.style.cursor = "nwse-resize";
-                } else if (pointHitsRotatedRect(point, layout.text) || pointHitsRotatedRect(point, layout.sticker)) {
+                } else if (
+                    (state.showText && pointHitsRotatedRect(point, layout.text)) ||
+                    state.stickers.some((sticker) => pointHitsRotatedRect(point, layout.stickers.get(sticker.id)))
+                ) {
                     canvas.style.cursor = "move";
                 } else {
                     canvas.style.cursor = "";
@@ -1365,30 +1527,32 @@
             }
 
             event.preventDefault();
-            if (activeDrag.mode === "rotate") {
-                const angle = Math.atan2(point.y - activeDrag.centerY, point.x - activeDrag.centerX);
-                const nextRotation = activeDrag.startRotation + angle - activeDrag.startAngle;
-                if (activeDrag.target === "text") {
-                    state.textRotation = nextRotation;
+            if (activeDrag.target === "sticker") {
+                const sticker = state.stickers.find((item) => item.id === activeDrag.stickerId);
+                if (!sticker) return;
+                if (activeDrag.mode === "rotate") {
+                    const angle = Math.atan2(point.y - activeDrag.centerY, point.x - activeDrag.centerX);
+                    sticker.rotation = activeDrag.startRotation + angle - activeDrag.startAngle;
+                } else if (activeDrag.mode === "resize") {
+                    const delta = Math.max(point.x - activeDrag.startX, point.y - activeDrag.startY);
+                    sticker.scale = clampStudioValue(activeDrag.startStickerScale + delta / 130, 0.45, 2.35);
+                    const bounds = stickerSize(sticker.type, sticker.scale);
+                    sticker.x = clampStudioValue(sticker.x, bounds.width / 2, canvas.width - bounds.width / 2);
+                    sticker.y = clampStudioValue(sticker.y, bounds.height / 2, canvas.height - bounds.height / 2);
                 } else {
-                    state.stickerRotation = nextRotation;
+                    const bounds = stickerSize(sticker.type, sticker.scale);
+                    sticker.x = clampStudioValue(point.x - activeDrag.offsetX, bounds.width / 2, canvas.width - bounds.width / 2);
+                    sticker.y = clampStudioValue(point.y - activeDrag.offsetY, bounds.height / 2, canvas.height - bounds.height / 2);
                 }
-            } else if (activeDrag.mode === "resize" && activeDrag.target === "text") {
+            } else if (activeDrag.mode === "rotate") {
+                const angle = Math.atan2(point.y - activeDrag.centerY, point.x - activeDrag.centerX);
+                state.textRotation = activeDrag.startRotation + angle - activeDrag.startAngle;
+            } else if (activeDrag.mode === "resize") {
                 const delta = Math.max(point.x - activeDrag.startX, point.y - activeDrag.startY);
                 state.textSize = clampStudioValue(activeDrag.startTextSize + delta * 0.36, 30, 112);
-            } else if (activeDrag.mode === "resize" && activeDrag.target === "sticker") {
-                const delta = Math.max(point.x - activeDrag.startX, point.y - activeDrag.startY);
-                state.stickerScale = clampStudioValue(activeDrag.startStickerScale + delta / 130, 0.45, 2.35);
-                const halfSize = 112 * state.stickerScale;
-                state.stickerX = clampStudioValue(state.stickerX, halfSize, canvas.width - halfSize);
-                state.stickerY = clampStudioValue(state.stickerY, halfSize, canvas.height - halfSize);
-            } else if (activeDrag.target === "text") {
+            } else {
                 state.textX = clampStudioValue(point.x - activeDrag.offsetX, 90, 630);
                 state.textY = clampStudioValue(point.y - activeDrag.offsetY, 150, 650);
-            } else {
-                const halfSize = 112 * state.stickerScale;
-                state.stickerX = clampStudioValue(point.x - activeDrag.offsetX, halfSize, canvas.width - halfSize);
-                state.stickerY = clampStudioValue(point.y - activeDrag.offsetY, halfSize, canvas.height - halfSize);
             }
             renderStudioCanvas();
         });
@@ -1409,7 +1573,7 @@
         backgroundButtons.forEach((button) => {
             button.addEventListener("click", () => {
                 state.background = button.dataset.studioBackground || "cream";
-                setActive(backgroundButtons, button);
+                backgroundButtons.forEach((node) => node.classList.toggle("is-active", node === button));
                 renderStudioCanvas();
             });
         });
@@ -1417,9 +1581,12 @@
         textPresetButtons.forEach((button) => {
             button.addEventListener("click", () => {
                 state.text = button.dataset.studioText || "나 불렀개?";
+                state.showText = true;
                 state.selectedElement = "text";
+                state.selectedStickerId = null;
                 if (textInput) textInput.value = state.text;
-                setActive(textPresetButtons, button);
+                textPresetButtons.forEach((node) => node.classList.toggle("is-active", node === button));
+                updateStickerButtons();
                 renderStudioCanvas();
             });
         });
@@ -1427,10 +1594,39 @@
         if (textInput) {
             textInput.addEventListener("input", () => {
                 state.text = textInput.value || "";
+                state.showText = true;
                 state.selectedElement = "text";
-                textPresetButtons.forEach((button) => {
-                    button.classList.toggle("is-active", button.dataset.studioText === state.text);
-                });
+                state.selectedStickerId = null;
+                textPresetButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.studioText === state.text));
+                updateStickerButtons();
+                renderStudioCanvas();
+            });
+        }
+
+        function selectOrCreateSpeechBubble() {
+            let sticker = selectedSticker();
+            if (!sticker || sticker.type !== "speechbubble") {
+                sticker = makeSticker("speechbubble", { x: 500, y: 160 });
+                state.stickers.push(sticker);
+            }
+            state.selectedElement = "sticker";
+            state.selectedStickerId = sticker.id;
+            updateStickerButtons();
+            return sticker;
+        }
+
+        if (bubbleTextInput) {
+            bubbleTextInput.addEventListener("input", () => {
+                const sticker = selectOrCreateSpeechBubble();
+                sticker.bubbleText = bubbleTextInput.value || "";
+                renderStudioCanvas();
+            });
+        }
+
+        if (bubbleSizeInput) {
+            bubbleSizeInput.addEventListener("input", () => {
+                const sticker = selectOrCreateSpeechBubble();
+                sticker.bubbleTextSize = clampStudioValue(Number(bubbleSizeInput.value) || 28, 18, 48);
                 renderStudioCanvas();
             });
         }
@@ -1439,18 +1635,15 @@
             button.addEventListener("click", () => {
                 state.textColor = button.dataset.studioColor || "#ffffff";
                 state.selectedElement = "text";
-                setActive(colorButtons, button);
+                state.selectedStickerId = null;
+                colorButtons.forEach((node) => node.classList.toggle("is-active", node === button));
+                updateStickerButtons();
                 renderStudioCanvas();
             });
         });
 
         stickerButtons.forEach((button) => {
-            button.addEventListener("click", () => {
-                state.sticker = button.dataset.studioSticker || "crown";
-                state.selectedElement = "sticker";
-                setActive(stickerButtons, button);
-                renderStudioCanvas();
-            });
+            button.addEventListener("click", () => addSticker(button.dataset.studioSticker || "imagecrown"));
         });
 
         if (fileInput) {
@@ -1472,6 +1665,15 @@
             });
         }
 
+        if (speechBubbleImage && !speechBubbleImage.complete) {
+            speechBubbleImage.addEventListener("load", () => renderStudioCanvas(), { once: true });
+        }
+        Object.values(imageStickers).forEach((image) => {
+            if (image && !image.complete) {
+                image.addEventListener("load", () => renderStudioCanvas(), { once: true });
+            }
+        });
+
         downloadButtons.forEach((button) => {
             button.addEventListener("click", () => {
                 const petName = (bootstrap.profile?.pet_name || "dog").replace(/[^\w가-힣-]+/g, "_");
@@ -1482,6 +1684,10 @@
             });
         });
 
+        addSticker("imagecrown");
+        state.selectedElement = "text";
+        state.selectedStickerId = null;
+        updateStickerButtons();
         renderStudioCanvas();
     }
 

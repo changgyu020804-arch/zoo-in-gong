@@ -36,6 +36,13 @@
                         </div>
                     </div>
                     <input type="file" id="studio-file-input" accept="image/*">
+                    <img id="studio-speech-bubble-asset" src="{{ url_for('static', filename='images/studio-speech-bubble.png') }}" alt="" hidden>
+                    <img id="studio-crown-sticker-asset" src="{{ url_for('static', filename='images/studio-crown-sticker.png') }}" alt="" hidden>
+                    <img id="studio-heart-sticker-asset" src="{{ url_for('static', filename='images/studio-heart-sticker.png') }}" alt="" hidden>
+                    <img id="studio-flower-sticker-asset" src="{{ url_for('static', filename='images/studio-flower-sticker.png') }}" alt="" hidden>
+                    <img id="studio-glasses-sticker-asset" src="{{ url_for('static', filename='images/studio-glasses-sticker.png') }}" alt="" hidden>
+                    <img id="studio-star-sticker-asset" src="{{ url_for('static', filename='images/studio-star-sticker.png') }}" alt="" hidden>
+                    <img id="studio-bone-sticker-asset" src="{{ url_for('static', filename='images/studio-bone-sticker.png') }}" alt="" hidden>
                     <div class="studio-canvas-frame">
                         <canvas id="studio-canvas" width="720" height="720" aria-label="이모티콘 미리보기"></canvas>
                     </div>
@@ -73,6 +80,20 @@
 
                     <section class="studio-control-group">
                         <div class="section-head compact">
+                            <h3>말풍선 문구</h3>
+                        </div>
+                        <label class="studio-text-field" for="studio-bubble-text-input">
+                            <span>말풍선 안에 넣을 말</span>
+                            <input type="text" id="studio-bubble-text-input" maxlength="34" value="여기에 입력" placeholder="예: 나도 같이 가">
+                        </label>
+                        <label class="studio-text-field" for="studio-bubble-size-input">
+                            <span>글자 크기</span>
+                            <input type="range" id="studio-bubble-size-input" min="18" max="48" value="28">
+                        </label>
+                    </section>
+
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
                             <h3>텍스트 색</h3>
                         </div>
                         <div class="studio-color-grid">
@@ -91,25 +112,20 @@
                         </div>
                         <div class="studio-sticker-grid">
                             {% for sticker in [
-                                ('crown', '왕관', 'fa-solid fa-crown', '#ffd76a', '#7a4f18'),
-                                ('gem', '보석', 'fa-regular fa-gem', '#e46cff', '#65dcff'),
-                                ('dog', '멍멍이', 'fa-solid fa-dog', '#d6a66d', '#2d241e'),
-                                ('snack', '간식', 'fa-solid fa-drumstick-bite', '#9b5b37', '#65c469'),
-                                ('hundred', '만점', 'fa-solid fa-underline', '#ef4e38', '#fff4eb'),
-                                ('heart', '하트', 'fa-solid fa-heart', '#9b5cff', '#4fd4ff'),
-                                ('rainbow', '무지개', 'fa-solid fa-rainbow', '#ff9ab8', '#6ed7ff'),
-                                ('donut', '도넛', 'fa-solid fa-circle-dot', '#ff5fc6', '#f5d35f'),
-                                ('glasses', '안경', 'fa-solid fa-glasses', '#58c9ff', '#1f2a44'),
-                                ('wizard', '마법모자', 'fa-solid fa-hat-wizard', '#cf55d8', '#f5d35f'),
-                                ('alien', '외계멍', 'fa-solid fa-robot', '#c7eef1', '#2d241e'),
-                                ('burger', '버거', 'fa-solid fa-burger', '#d17a33', '#f5d35f'),
-                                ('bubble', '말풍선', 'fa-regular fa-comment', '#ffffff', '#2d241e'),
-                                ('lips', '입술', 'fa-solid fa-face-smile', '#ff4d62', '#8b1d2e'),
-                                ('pixelheart', '픽셀하트', 'fa-solid fa-heart', '#57c7ff', '#ffffff'),
-                                ('shades', '선글라스', 'fa-solid fa-glasses', '#91ecff', '#8b5cff')
+                                ('imagecrown', '왕관', 'fa-solid fa-crown', '#ffd76a', '#7a4f18', 'images/studio-crown-sticker.png'),
+                                ('imageheart', '하트', 'fa-solid fa-heart', '#ff6289', '#b80c3c', 'images/studio-heart-sticker.png'),
+                                ('imageflower', '꽃', 'fa-solid fa-spa', '#ffc0d3', '#ffd460', 'images/studio-flower-sticker.png'),
+                                ('imageglasses', '선글라스', 'fa-solid fa-glasses', '#171717', '#ffffff', 'images/studio-glasses-sticker.png'),
+                                ('imagestar', '별', 'fa-solid fa-star', '#ffd84d', '#ff9f00', 'images/studio-star-sticker.png'),
+                                ('imagebone', '뼈다귀', 'fa-solid fa-bone', '#fff0cf', '#d5975d', 'images/studio-bone-sticker.png'),
+                                ('speechbubble', '말풍선 입력', 'fa-regular fa-comment-dots', '#ffffff', '#2d241e', '')
                             ] %}
                             <button type="button" class="studio-sticker {% if loop.first %}is-active{% endif %}" data-studio-sticker="{{ sticker[0] }}" style="--sticker-a:{{ sticker[3] }};--sticker-b:{{ sticker[4] }}" aria-label="{{ sticker[1] }}">
+                                {% if sticker[5] %}
+                                <img class="studio-sticker-preview" src="{{ url_for('static', filename=sticker[5]) }}" alt="" aria-hidden="true">
+                                {% else %}
                                 <i class="{{ sticker[2] }}" aria-hidden="true"></i>
+                                {% endif %}
                                 <span>{{ sticker[1] }}</span>
                             </button>
                             {% endfor %}
@@ -130,6 +146,6 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260525d"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-maker-20260601f"></script>
 </body>
 </html>

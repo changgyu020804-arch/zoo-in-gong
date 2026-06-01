@@ -8,6 +8,71 @@ from services import get_user_profile
 from text_utils import clean_multi_line_text, clean_single_line_text
 
 
+def find_account_context():
+    return {
+        "mode": "find_username",
+        "found_usernames": [],
+        "username_message": "",
+        "password_message": "",
+        "username_error": "",
+        "password_error": "",
+    }
+
+
+def clean_account_lookup_form(form):
+    return {
+        "username": clean_single_line_text(form.get("username", ""), 50),
+        "pet_name": clean_single_line_text(form.get("pet_name", ""), 50),
+        "pet_species": clean_single_line_text(form.get("pet_species", ""), 50),
+        "phone_number": clean_single_line_text(form.get("phone_number", ""), 30),
+    }
+
+
+def clean_signup_species(form):
+    pet_species = clean_single_line_text(form.get("pet_species", ""), 50)
+    if pet_species == "기타":
+        return clean_single_line_text(form.get("pet_species_other", ""), 50)
+    return pet_species
+
+
+def account_lookup_values(fields):
+    return (fields["pet_name"], fields["pet_species"], fields["phone_number"])
+
+
+def find_usernames_by_account_fields(fields):
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT username
+            FROM users
+            WHERE pet_name = ? AND pet_species = ? AND phone_number = ?
+            ORDER BY username
+            """,
+            account_lookup_values(fields),
+        ).fetchall()
+    return [row["username"] for row in rows]
+
+
+def reset_password_for_account(fields, new_password):
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE users
+            SET password = ?
+            WHERE username = ? AND pet_name = ? AND pet_species = ? AND phone_number = ?
+            """,
+            (
+                new_password,
+                fields["username"],
+                fields["pet_name"],
+                fields["pet_species"],
+                fields["phone_number"],
+            ),
+        )
+        conn.commit()
+    return cursor.rowcount > 0
+
+
 def register_auth_routes(app):
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -29,13 +94,45 @@ def register_auth_routes(app):
 
         return render_template("login.html")
 
+    @app.route("/find-account", methods=["GET", "POST"])
+    def find_account():
+        context = find_account_context()
+
+        if request.method == "POST":
+            action = clean_single_line_text(request.form.get("action", ""), 40)
+            context["mode"] = action or "find_username"
+
+            if action == "find_username":
+                fields = clean_account_lookup_form(request.form)
+                if not all(account_lookup_values(fields)):
+                    context["username_error"] = "주인공 이름, 종류, 전화번호를 모두 입력해 주세요."
+                else:
+                    context["found_usernames"] = find_usernames_by_account_fields(fields)
+                    if context["found_usernames"]:
+                        context["username_message"] = "아래 아이디를 찾았어요."
+                    else:
+                        context["username_error"] = "일치하는 아이디를 찾지 못했어요."
+
+            elif action == "reset_password":
+                fields = clean_account_lookup_form(request.form)
+                new_password = clean_single_line_text(request.form.get("new_password", ""), 100)
+                if not all([fields["username"], *account_lookup_values(fields), new_password]):
+                    context["password_error"] = "아이디, 주인공 정보, 전화번호, 새 비밀번호를 모두 입력해 주세요."
+                elif reset_password_for_account(fields, new_password):
+                    context["password_message"] = "비밀번호를 새로 설정했어요. 이제 로그인할 수 있어요."
+                else:
+                    context["password_error"] = "입력한 정보와 일치하는 계정을 찾지 못했어요."
+
+        return render_template("find_account.html", **context)
+
     @app.route("/signup", methods=["GET", "POST"])
     def signup():
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
             password = clean_single_line_text(request.form["password"], 100)
+            phone_number = clean_single_line_text(request.form.get("phone_number", ""), 30)
             pet_name = clean_single_line_text(request.form["pet_name"], 50)
-            pet_species = clean_single_line_text(request.form["pet_species"], 50)
+            pet_species = clean_signup_species(request.form)
             try:
                 pet_age = max(0, int((request.form.get("pet_age") or "0").strip() or 0))
             except ValueError:
@@ -47,7 +144,7 @@ def register_auth_routes(app):
             owner_persona_note = clean_multi_line_text(request.form.get("owner_persona_note", ""), 220)
             persona_answers = extract_persona_answers(request.form)
 
-            if not all([username, password, pet_name, pet_species, personality]):
+            if not all([username, password, phone_number, pet_name, pet_species, personality]):
                 return render_template("signup.html", error="필수 정보를 모두 입력해 주세요.")
 
             temp_profile = enrich_profile(
@@ -76,13 +173,13 @@ def register_auth_routes(app):
                         INSERT INTO users
                         (
                             username, password, pet_name, pet_species, pet_age, persona,
-                            activity_level, pet_likes, pet_dislikes, avatar_url, bio,
+                            activity_level, pet_likes, pet_dislikes, phone_number, avatar_url, bio,
                             status_message, favorite_place, personality,
                             owner_persona_note,
                             {", ".join(PERSONA_KEYS)}
                         )
                         VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                             {", ".join(["?"] * len(PERSONA_KEYS))}
                         )
                         """,
@@ -96,6 +193,7 @@ def register_auth_routes(app):
                             activity_level,
                             pet_likes,
                             pet_dislikes,
+                            phone_number,
                             "",
                             temp_profile["bio"],
                             temp_profile["status_message"],

@@ -7,6 +7,7 @@ from config import DATABASE_PATH
 
 
 PROFILE_COLUMNS = [
+    ("phone_number", "TEXT DEFAULT ''"),
     ("avatar_url", "TEXT DEFAULT ''"),
     ("bio", "TEXT DEFAULT ''"),
     ("status_message", "TEXT DEFAULT ''"),
