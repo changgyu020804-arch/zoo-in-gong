@@ -2,6 +2,9 @@ import os
 import re
 import time
 import logging
+import gc
+from contextlib import suppress
+from threading import BoundedSemaphore
 from types import SimpleNamespace
 
 from config import load_local_env
@@ -29,9 +32,13 @@ GEMINI_MODELS = [
     for model in os.environ.get("GEMINI_MODELS", GEMINI_MODEL).split(",")
     if model.strip()
 ]
+GEMINI_MAX_RESPONSE_CHARS = max(256, int(os.environ.get("GEMINI_MAX_RESPONSE_CHARS", "6000")))
+GEMINI_CONCURRENCY = max(1, int(os.environ.get("GEMINI_CONCURRENCY", "1")))
+GEMINI_GC_AFTER_CALL = os.environ.get("GEMINI_GC_AFTER_CALL", "1") != "0"
 
 client = genai.Client(api_key=GEMINI_API_KEY) if genai and GEMINI_API_KEY else None
 logger = logging.getLogger(__name__)
+_gemini_semaphore = BoundedSemaphore(GEMINI_CONCURRENCY)
 
 
 DOG_LANGUAGE_SYSTEM_INSTRUCTION = """
@@ -177,12 +184,37 @@ def _generate_config(
 
 
 def _stream_text(model, contents, config):
-    chunks = client.models.generate_content_stream(
-        model=model,
-        contents=contents,
-        config=config,
-    )
-    return "".join(chunk.text or "" for chunk in chunks).strip()
+    chunks = None
+    parts = []
+    total_chars = 0
+    try:
+        chunks = client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=config,
+        )
+        for chunk in chunks:
+            piece = chunk.text or ""
+            if not piece:
+                continue
+
+            remaining = GEMINI_MAX_RESPONSE_CHARS - total_chars
+            if remaining <= 0:
+                break
+            if len(piece) > remaining:
+                piece = piece[:remaining]
+
+            parts.append(piece)
+            total_chars += len(piece)
+
+        return "".join(parts).strip()
+    finally:
+        close = getattr(chunks, "close", None)
+        if callable(close):
+            with suppress(Exception):
+                close()
+        chunks = None
+        parts.clear()
 
 
 def generate_gemini_content(
@@ -217,41 +249,54 @@ def generate_gemini_content(
         max_output_tokens=max_output_tokens,
     )
 
-    last_error = None
+    last_error_name = "UnknownError"
+    last_error_message = "알 수 없는 오류"
     attempts = max(1, int(max_attempts or 1))
     started_at = time.perf_counter()
-    for attempt in range(1, attempts + 1):
-        for model in GEMINI_MODELS:
-            try:
-                attempt_started_at = time.perf_counter()
-                text = _stream_text(model, contents, config)
-                if text:
-                    elapsed = time.perf_counter() - started_at
-                    attempt_elapsed = time.perf_counter() - attempt_started_at
-                    logger.info(
-                        "Gemini call completed model=%s attempt=%s elapsed=%.2fs attempt_elapsed=%.2fs chars=%s",
+
+    _gemini_semaphore.acquire()
+    try:
+        for attempt in range(1, attempts + 1):
+            for model in GEMINI_MODELS:
+                text = ""
+                try:
+                    attempt_started_at = time.perf_counter()
+                    text = _stream_text(model, contents, config)
+                    if text:
+                        elapsed = time.perf_counter() - started_at
+                        attempt_elapsed = time.perf_counter() - attempt_started_at
+                        logger.info(
+                            "Gemini call completed model=%s attempt=%s elapsed=%.2fs attempt_elapsed=%.2fs chars=%s",
+                            model,
+                            attempt,
+                            elapsed,
+                            attempt_elapsed,
+                            len(text),
+                        )
+                        return SimpleNamespace(text=text, model=model, attempts=attempt, elapsed=elapsed)
+                    last_error_name = "EmptyResponse"
+                    last_error_message = "Gemini가 빈 응답을 반환했습니다."
+                except Exception as error:
+                    last_error_name = type(error).__name__
+                    last_error_message = str(error)
+                    logger.warning(
+                        "Gemini call failed model=%s attempt=%s elapsed=%.2fs error=%s",
                         model,
                         attempt,
-                        elapsed,
-                        attempt_elapsed,
-                        len(text),
+                        time.perf_counter() - started_at,
+                        last_error_name,
                     )
-                    return SimpleNamespace(text=text, model=model, attempts=attempt, elapsed=elapsed)
-                last_error = RuntimeError("Gemini가 빈 응답을 반환했습니다.")
-            except Exception as error:
-                last_error = error
-                logger.warning(
-                    "Gemini call failed model=%s attempt=%s elapsed=%.2fs error=%s",
-                    model,
-                    attempt,
-                    time.perf_counter() - started_at,
-                    type(error).__name__,
-                )
+                finally:
+                    text = ""
 
-        if attempt < attempts:
-            time.sleep(float(retry_delay or 0))
+            if attempt < attempts:
+                time.sleep(float(retry_delay or 0))
+    finally:
+        _gemini_semaphore.release()
+        if GEMINI_GC_AFTER_CALL:
+            gc.collect()
 
     model_list = ", ".join(GEMINI_MODELS) or "(모델 없음)"
-    error_name = type(last_error).__name__ if last_error else "UnknownError"
-    error_message = str(last_error) if last_error else "알 수 없는 오류"
-    raise RuntimeError(f"Gemini 호출에 실패했습니다. models={model_list}, error={error_name}: {error_message}")
+    raise RuntimeError(
+        f"Gemini 호출에 실패했습니다. models={model_list}, error={last_error_name}: {last_error_message}"
+    )
