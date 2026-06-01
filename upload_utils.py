@@ -15,7 +15,12 @@ def store_uploaded_file(file, prefix=""):
     name_prefix = f"{prefix}_" if prefix else ""
     filename = f"{name_prefix}{timestamp}_{safe_name}" if safe_name else f"{name_prefix}{timestamp}.jpg"
     filepath = UPLOAD_FOLDER / filename
-    file.save(filepath)
+    try:
+        file.save(filepath)
+    finally:
+        close = getattr(file, "close", None)
+        if callable(close):
+            close()
     url_prefix = "/static/uploads" if UPLOAD_FOLDER.resolve() == STATIC_UPLOAD_FOLDER else "/uploads"
     return filepath, f"{url_prefix}/{filename}"
 

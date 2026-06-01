@@ -1,4 +1,5 @@
 from datetime import datetime
+from contextlib import contextmanager
 import re
 import sqlite3
 from zoneinfo import ZoneInfo
@@ -43,10 +44,18 @@ COMMENT_COLUMNS = [
 
 
 
+@contextmanager
 def get_db_connection():
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
-    return connection
+    try:
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def ensure_columns(cursor, table_name, columns):
