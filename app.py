@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -30,6 +31,7 @@ TEXT_RESPONSE_MIMETYPES = {
 def configure_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
 
     log_path = BASE_DIR / "server.log"
     has_file_handler = any(
@@ -40,8 +42,18 @@ def configure_logging():
     if not has_file_handler:
         file_handler = logging.FileHandler(log_path, encoding="utf-8")
         file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+        file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
+
+    has_stream_handler = any(
+        isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler)
+        for handler in root_logger.handlers
+    )
+    if not has_stream_handler:
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+        root_logger.addHandler(stream_handler)
 
 
 def build_persona_options():
