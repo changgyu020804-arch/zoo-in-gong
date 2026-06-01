@@ -28,6 +28,12 @@ TEXT_RESPONSE_MIMETYPES = {
 }
 
 
+def should_log_request_memory():
+    if os.environ.get("REQUEST_MEMORY_LOG", "0") != "1":
+        return False
+    return request.endpoint not in {"static", "api_notifications"}
+
+
 def configure_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
@@ -143,7 +149,7 @@ def create_app(database_path=None, upload_folder=None, testing=False):
         if response.mimetype in TEXT_RESPONSE_MIMETYPES and "charset=" not in response.content_type.lower():
             response.headers["Content-Type"] = f"{response.mimetype}; charset=utf-8"
 
-        if os.environ.get("REQUEST_MEMORY_LOG", "1") != "0" and request.endpoint != "static":
+        if should_log_request_memory():
             started_at = getattr(g, "request_started_at", None)
             started_memory_mb = getattr(g, "request_started_memory_mb", None)
             current_memory_mb = get_process_memory_mb()
