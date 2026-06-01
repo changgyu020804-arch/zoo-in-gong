@@ -1761,15 +1761,6 @@ button.grid-post {
     color: var(--text);
 }
 
-.empty-state p {
-    margin: 8px 0 0;
-    line-height: 1.55;
-}
-
-.explore-grid > .empty-state {
-    grid-column: 1 / -1;
-}
-
 .tag-pill {
     display: inline-flex;
     align-items: center;

@@ -97,19 +97,6 @@
                     {% endfor %}
                 </div>
             </section>
-            {% else %}
-            <section class="panel-card daily-awards-section">
-                <div class="section-head">
-                    <div>
-                        <p class="eyebrow">오늘의 댕댕 랭킹</p>
-                        <h2>첫 게시물을 기다리는 중이에요</h2>
-                    </div>
-                </div>
-                <div class="empty-state">
-                    <strong>아직 선정할 게시물이 없어요.</strong>
-                    <p>사진을 하나 올리면 표정왕, 꼬리왕 같은 오늘의 랭킹이 채워져요.</p>
-                </div>
-            </section>
             {% endif %}
 
             <section
@@ -332,11 +319,6 @@
                         </div>
                     </div>
                 </article>
-                {% else %}
-                <div class="empty-state">
-                    <strong>아직 피드에 게시물이 없어요.</strong>
-                    <p>첫 사진을 올리면 홈 피드와 탐색 영역에 바로 나타나요.</p>
-                </div>
                 {% endfor %}
             </section>
 
@@ -356,11 +338,6 @@
                             <span>#{{ post.persona }}</span>
                         </div>
                     </button>
-                    {% else %}
-                    <div class="empty-state">
-                        <strong>탐색할 게시물이 아직 없어요.</strong>
-                        <p>새 게시물이 생기면 분위기 좋은 사진들이 여기에 모여요.</p>
-                    </div>
                     {% endfor %}
                 </div>
             </section>
@@ -430,11 +407,6 @@
                             <strong>{{ item.total_likes }}</strong>
                             <small>likes</small>
                         </div>
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <strong>핫한 댕댕이를 집계하는 중이에요.</strong>
-                        <p>좋아요와 게시물이 쌓이면 순위가 자동으로 채워져요.</p>
                     </div>
                     {% endfor %}
                 </div>
