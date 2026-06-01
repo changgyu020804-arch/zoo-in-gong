@@ -1,6 +1,8 @@
 from html import escape
+import gc
 import logging
-from threading import Thread
+import os
+from threading import BoundedSemaphore, Thread
 import time
 
 from flask import jsonify, request
@@ -13,6 +15,7 @@ from caption_ai import (
 )
 from comment_ai import generate_comment_suggestion
 from db import get_db_connection
+from runtime_metrics import get_process_memory_mb
 from services import build_comment_item, create_notification, get_post, get_user_profile
 from text_utils import clean_multi_line_text, clean_single_line_text
 from upload_utils import remove_upload_file_if_unused, store_uploaded_file
@@ -22,6 +25,8 @@ from routes.utils import login_required_json
 logger = logging.getLogger(__name__)
 PENDING_CAPTION_TEXT = "AI 캡션을 만들고 있어요..."
 PENDING_CAPTION_HTML = escape(PENDING_CAPTION_TEXT)
+CAPTION_WORKER_CONCURRENCY = max(1, int(os.environ.get("CAPTION_WORKER_CONCURRENCY", "1")))
+_caption_worker_semaphore = BoundedSemaphore(CAPTION_WORKER_CONCURRENCY)
 
 
 def _timed_call(label, callback, *args, **kwargs):
@@ -47,8 +52,11 @@ def get_post_payload(post_id, username):
 
 
 def finish_pending_caption(post_id, filepath, profile, activity_text):
+    started_at = time.perf_counter()
+    started_memory_mb = get_process_memory_mb()
     try:
-        analysis, caption = generate_caption_without_image_judgement(filepath, profile, activity_text)
+        with _caption_worker_semaphore:
+            analysis, caption = generate_caption_without_image_judgement(filepath, profile, activity_text)
         caption_status = "ready"
         if not caption:
             caption = escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
@@ -68,6 +76,22 @@ def finish_pending_caption(post_id, filepath, profile, activity_text):
             (caption, caption_status, post_id),
         )
         conn.commit()
+
+    current_memory_mb = get_process_memory_mb()
+    memory_delta_mb = (
+        current_memory_mb - started_memory_mb
+        if current_memory_mb is not None and started_memory_mb is not None
+        else None
+    )
+    logger.info(
+        "caption_worker post_id=%s status=%s elapsed=%.2fs memory_mb=%s memory_delta_mb=%s",
+        post_id,
+        caption_status,
+        time.perf_counter() - started_at,
+        f"{current_memory_mb:.1f}" if current_memory_mb is not None else "unknown",
+        f"{memory_delta_mb:+.1f}" if memory_delta_mb is not None else "unknown",
+    )
+    gc.collect()
 
 
 def start_pending_caption(app, post_id, filepath, profile, activity_text):

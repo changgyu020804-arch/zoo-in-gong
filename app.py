@@ -9,6 +9,7 @@ from config import BASE_DIR, UPLOAD_FOLDER
 import db
 import upload_utils
 from persona import PERSONA_QUESTIONS, enrich_profile, persona_defaults
+from runtime_metrics import get_process_memory_mb
 from routes.api import register_api_routes
 from routes.auth import register_auth_routes
 from routes.pages import register_page_routes
@@ -24,20 +25,6 @@ TEXT_RESPONSE_MIMETYPES = {
     "text/javascript",
     "text/plain",
 }
-
-
-def get_process_memory_mb():
-    try:
-        status = Path("/proc/self/status").read_text(encoding="utf-8")
-    except OSError:
-        return None
-
-    for line in status.splitlines():
-        if line.startswith("VmRSS:"):
-            parts = line.split()
-            if len(parts) >= 2 and parts[1].isdigit():
-                return int(parts[1]) / 1024
-    return None
 
 
 def configure_logging():
@@ -119,6 +106,7 @@ def create_app(database_path=None, upload_folder=None, testing=False):
     app.config["UPLOAD_FOLDER"] = str(active_upload_folder)
     app.config["TESTING"] = testing
     app.config["JSON_AS_ASCII"] = False
+    app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_BYTES", str(8 * 1024 * 1024)))
     app.json.ensure_ascii = False
 
     active_upload_folder.mkdir(parents=True, exist_ok=True)
