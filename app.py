@@ -1,8 +1,9 @@
 import logging
 import os
+import time
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, g, request, session
 
 from config import BASE_DIR, UPLOAD_FOLDER
 import db
@@ -23,6 +24,20 @@ TEXT_RESPONSE_MIMETYPES = {
     "text/javascript",
     "text/plain",
 }
+
+
+def get_process_memory_mb():
+    try:
+        status = Path("/proc/self/status").read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    for line in status.splitlines():
+        if line.startswith("VmRSS:"):
+            parts = line.split()
+            if len(parts) >= 2 and parts[1].isdigit():
+                return int(parts[1]) / 1024
+    return None
 
 
 def configure_logging():
@@ -118,10 +133,37 @@ def create_app(database_path=None, upload_folder=None, testing=False):
             "persona_options": persona_options,
         }
 
+    @app.before_request
+    def record_request_start():
+        g.request_started_at = time.perf_counter()
+        g.request_started_memory_mb = get_process_memory_mb()
+
     @app.after_request
-    def add_utf8_charset(response):
+    def finalize_response(response):
         if response.mimetype in TEXT_RESPONSE_MIMETYPES and "charset=" not in response.content_type.lower():
             response.headers["Content-Type"] = f"{response.mimetype}; charset=utf-8"
+
+        if os.environ.get("REQUEST_MEMORY_LOG", "1") != "0" and request.endpoint != "static":
+            started_at = getattr(g, "request_started_at", None)
+            started_memory_mb = getattr(g, "request_started_memory_mb", None)
+            current_memory_mb = get_process_memory_mb()
+            elapsed_ms = (time.perf_counter() - started_at) * 1000 if started_at else 0
+            memory_delta_mb = (
+                current_memory_mb - started_memory_mb
+                if current_memory_mb is not None and started_memory_mb is not None
+                else None
+            )
+            logging.getLogger("request_memory").info(
+                "request method=%s path=%s endpoint=%s status=%s elapsed_ms=%.1f user=%s memory_mb=%s memory_delta_mb=%s",
+                request.method,
+                request.path,
+                request.endpoint or "",
+                response.status_code,
+                elapsed_ms,
+                session.get("username", "-"),
+                f"{current_memory_mb:.1f}" if current_memory_mb is not None else "unknown",
+                f"{memory_delta_mb:+.1f}" if memory_delta_mb is not None else "unknown",
+            )
         return response
 
     register_auth_routes(app)
