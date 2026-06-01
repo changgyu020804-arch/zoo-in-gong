@@ -704,7 +704,11 @@ def make_fallback_caption(profile, activity_text=""):
 def generate_caption(image_path, profile, activity_text="", analysis=None):
     analysis = analysis or {}
     activity_text = clean_multi_line_text(activity_text, 320)
-    if not client or Image is None:
+    if not client:
+        logger.warning("Gemini caption fallback reason=missing_client_or_api_key")
+        return escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
+    if Image is None:
+        logger.warning("Gemini caption fallback reason=pillow_unavailable")
         return escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
 
     owner_note = clean_single_line_text(profile.get("owner_persona_note") or "없음", 180)
@@ -794,9 +798,14 @@ def generate_caption(image_path, profile, activity_text="", analysis=None):
             fallback_hashtags=hashtag_hint,
         )
         if not caption_text or is_caption_too_short(caption_text):
+            logger.warning(
+                "Gemini caption fallback reason=empty_or_short_response raw_chars=%s sanitized_chars=%s",
+                len(raw_text),
+                len(caption_text or ""),
+            )
             caption_text = make_fallback_caption(profile, activity_text)
 
         return escape(caption_text).replace("\n", "<br>")
-    except Exception:
-        logger.exception("Gemini caption generation failed")
+    except Exception as error:
+        logger.exception("Gemini caption generation failed error=%s", type(error).__name__)
         return escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
