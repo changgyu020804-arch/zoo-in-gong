@@ -422,6 +422,24 @@ def _daily_award_image_key(post):
     return re.sub(r"^\d{14,20}_", "", filename) or image_url
 
 
+def _select_daily_award_winners(ranked_posts, category, used_post_ids, used_image_keys, limit, require_relevance=True):
+    winners = []
+    for _index, post in ranked_posts:
+        image_key = _daily_award_image_key(post)
+        if post["id"] in used_post_ids:
+            continue
+        if image_key in used_image_keys:
+            continue
+        if require_relevance and _daily_award_relevance(post, category) <= 0:
+            continue
+        winners.append(post)
+        used_post_ids.add(post["id"])
+        used_image_keys.add(image_key)
+        if len(winners) >= limit:
+            break
+    return winners
+
+
 def build_daily_awards(viewer_username=None, limit_per_category=1):
     posts = get_posts(viewer_username=viewer_username)[:80]
     if not posts:
@@ -431,6 +449,8 @@ def build_daily_awards(viewer_username=None, limit_per_category=1):
     used_post_ids = set()
     used_image_keys = set()
     today_label = datetime.now().strftime("%m.%d")
+    award_slots = []
+    ranked_by_category = []
     for category in DAILY_AWARD_CATEGORIES:
         indexed_posts = list(enumerate(posts))
         ranked = sorted(
@@ -438,24 +458,34 @@ def build_daily_awards(viewer_username=None, limit_per_category=1):
             key=lambda item: _daily_award_score(item[1], category, item[0]),
             reverse=True,
         )
-        winners = []
-        for _index, post in ranked:
-            image_key = _daily_award_image_key(post)
-            if _daily_award_relevance(post, category) <= 0:
-                continue
-            if post["id"] in used_post_ids:
-                continue
-            if image_key in used_image_keys:
-                continue
-            winners.append(post)
-            used_post_ids.add(post["id"])
-            used_image_keys.add(image_key)
-            if len(winners) >= limit_per_category:
-                break
-        if not winners:
+        ranked_by_category.append((category, ranked))
+        winners = _select_daily_award_winners(
+            ranked,
+            category,
+            used_post_ids,
+            used_image_keys,
+            limit_per_category,
+            require_relevance=True,
+        )
+        award_slots.append(winners[0] if winners else None)
+
+    for index, (category, ranked) in enumerate(ranked_by_category):
+        if award_slots[index] is not None:
+            continue
+        winners = _select_daily_award_winners(
+            ranked,
+            category,
+            used_post_ids,
+            used_image_keys,
+            limit_per_category,
+            require_relevance=False,
+        )
+        award_slots[index] = winners[0] if winners else None
+
+    for category, post in zip(DAILY_AWARD_CATEGORIES, award_slots):
+        if not post:
             continue
 
-        post = winners[0]
         awards.append(
             {
                 "key": category["key"],

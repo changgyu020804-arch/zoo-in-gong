@@ -579,6 +579,33 @@ def test_daily_awards_avoid_repeated_source_images(client):
     assert len(image_keys) == len(set(image_keys))
 
 
+def test_daily_awards_fall_back_to_available_unique_posts(client):
+    from services import build_daily_awards
+
+    create_user(client, "ruby", "루비")
+    with client.db.get_db_connection() as conn:
+        for index in range(3):
+            conn.execute(
+                """
+                INSERT INTO posts (image_url, caption, likes, username, activity_text)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    f"/static/uploads/20260602020{index}_quiet-{index}.jpg",
+                    "편안한 하루",
+                    1,
+                    "ruby",
+                    "조용히 쉬었어요",
+                ),
+            )
+        conn.commit()
+
+    awards = build_daily_awards("ruby")
+
+    assert awards
+    assert len({award["post"]["id"] for award in awards}) == len(awards)
+
+
 def test_home_renders_daily_awards_when_posts_exist(client):
     create_user(client, "nari", "나리")
     with client.db.get_db_connection() as conn:
