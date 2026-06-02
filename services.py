@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from html import unescape
+from pathlib import Path
 import re
 
 from db import get_db_connection
@@ -391,6 +392,21 @@ def _daily_award_score(post, category, index):
     return score
 
 
+def _daily_award_relevance(post, category):
+    text = " ".join(
+        [
+            post.get("pet_name") or "",
+            post.get("persona") or "",
+            post.get("caption_text") or "",
+            post.get("activity_text") or "",
+            post.get("search_text") or "",
+        ]
+    ).lower()
+    return sum(1 for keyword in category["keywords"] if keyword.lower() in text) + sum(
+        1 for keyword in category["persona_keywords"] if keyword.lower() in text
+    )
+
+
 def _award_blurb(post, category):
     source = post.get("activity_text") or post.get("caption_text") or ""
     source = caption_html_to_text(source)
@@ -400,6 +416,12 @@ def _award_blurb(post, category):
     return category["reason"]
 
 
+def _daily_award_image_key(post):
+    image_url = post.get("image_url") or ""
+    filename = Path(image_url.split("?", 1)[0]).name.lower()
+    return re.sub(r"^\d{14,20}_", "", filename) or image_url
+
+
 def build_daily_awards(viewer_username=None, limit_per_category=1):
     posts = get_posts(viewer_username=viewer_username)[:80]
     if not posts:
@@ -407,6 +429,7 @@ def build_daily_awards(viewer_username=None, limit_per_category=1):
 
     awards = []
     used_post_ids = set()
+    used_image_keys = set()
     today_label = datetime.now().strftime("%m.%d")
     for category in DAILY_AWARD_CATEGORIES:
         indexed_posts = list(enumerate(posts))
@@ -417,10 +440,16 @@ def build_daily_awards(viewer_username=None, limit_per_category=1):
         )
         winners = []
         for _index, post in ranked:
-            if post["id"] in used_post_ids and len(ranked) > len(DAILY_AWARD_CATEGORIES):
+            image_key = _daily_award_image_key(post)
+            if _daily_award_relevance(post, category) <= 0:
+                continue
+            if post["id"] in used_post_ids:
+                continue
+            if image_key in used_image_keys:
                 continue
             winners.append(post)
             used_post_ids.add(post["id"])
+            used_image_keys.add(image_key)
             if len(winners) >= limit_per_category:
                 break
         if not winners:

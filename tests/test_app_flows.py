@@ -533,7 +533,7 @@ def test_daily_awards_pick_recent_posts(client):
             INSERT INTO posts (image_url, caption, likes, username, activity_text)
             VALUES (?, ?, ?, ?, ?)
             """,
-            ("/static/uploads/play.jpg", "공놀이 MVP", 5, "bori", "공 장난감 놀이를 신나게 했어요"),
+            ("/static/uploads/play.jpg", "공놀이 MVP", 5, "bori", "공 장난감 놀이를 했어요"),
         )
         conn.commit()
 
@@ -542,6 +542,41 @@ def test_daily_awards_pick_recent_posts(client):
     assert awards
     assert {award["label"] for award in awards} >= {"표정왕", "놀이 MVP"}
     assert all(award["post"]["id"] for award in awards)
+
+
+def test_daily_awards_avoid_repeated_source_images(client):
+    from services import _daily_award_image_key, build_daily_awards
+
+    create_user(client, "ruby", "루비")
+    create_user(client, "nari", "나리")
+    with client.db.get_db_connection() as conn:
+        repeated_posts = [
+            ("20260602010101000001_sleepy.jpg", "잠이 너무 오는 표정", "잠이 너무 오는 표정을 찍어 봤어"),
+            ("20260602010202000002_sleepy.jpg", "졸린 표정과 집사 옆", "잠이 너무 오는 표정을 찍어 봤어"),
+            ("20260602010303000003_sleepy.jpg", "장난감 옆 졸림", "잠이 너무 오는 표정을 찍어 봤어"),
+        ]
+        for filename, caption, activity in repeated_posts:
+            conn.execute(
+                """
+                INSERT INTO posts (image_url, caption, likes, username, activity_text)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (f"/static/uploads/{filename}", caption, 9, "ruby", activity),
+            )
+        conn.execute(
+            """
+            INSERT INTO posts (image_url, caption, likes, username, activity_text)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ("/static/uploads/20260602010404000004_play.jpg", "공놀이 MVP", 6, "nari", "공 장난감 놀이를 했어요"),
+        )
+        conn.commit()
+
+    awards = build_daily_awards("ruby")
+    image_keys = [_daily_award_image_key(award["post"]) for award in awards]
+
+    assert image_keys
+    assert len(image_keys) == len(set(image_keys))
 
 
 def test_home_renders_daily_awards_when_posts_exist(client):
