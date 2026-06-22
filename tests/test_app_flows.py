@@ -495,16 +495,24 @@ def test_studio_page_renders_canvas_maker(client):
     assert "제작소" in html
     assert "studio-canvas" in html
     assert "data-studio-background" not in html
-    assert "studio-controls" not in html
-    assert "data-studio-text" not in html
-    assert "studio-text-input" not in html
-    assert "studio-bubble-text-input" not in html
-    assert "studio-bubble-size-input" not in html
+    assert "studio-controls" in html
+    assert "data-studio-text" in html
+    assert "studio-text-input" in html
+    assert "studio-bubble-text-input" in html
+    assert "studio-bubble-size-input" in html
     assert "문구 삭제" not in html
     assert "텍스트 위치" not in html
-    assert "data-studio-color" not in html
-    assert "data-studio-sticker" not in html
+    assert "data-studio-color" in html
+    assert "data-studio-sticker" in html
+    assert "말풍선 입력" in html
+    assert "왕관" in html
+    assert "하트" in html
+    assert "꽃" in html
+    assert "선글라스" in html
+    assert "별" in html
+    assert "뼈다귀" in html
     assert "스티커 삭제" not in html
+    assert "인기 스티커" in html
     assert "PNG 저장" in html
 
 

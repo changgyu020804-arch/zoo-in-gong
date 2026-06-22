@@ -4,6 +4,12 @@
 {% include 'partials/head.html' %}
 <body data-page="studio">
     <div class="app-shell studio-shell">
+        {% set sidebar_variant = 'simple' %}
+        {% set sidebar_active = 'studio' %}
+        {% set sidebar_profile = profile %}
+        {% set sidebar_chip_button = false %}
+        {% include 'partials/app_sidebar.html' %}
+
         <main class="content-column studio-column">
             {% set topbar_action = none %}
             {% set topbar_href = url_for('profile') %}
@@ -42,6 +48,76 @@
                     </div>
                 </div>
 
+                <div class="studio-controls">
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>문구</h3>
+                        </div>
+                        <label class="studio-text-field" for="studio-text-input">
+                            <span>문구 직접 입력</span>
+                            <input type="text" id="studio-text-input" maxlength="18" value="나 불렀개?" placeholder="예: 하기싫다">
+                        </label>
+                        <div class="studio-preset-grid">
+                            {% for text in ['나 불렀개?', '간식 협상중', '집사 어디감', '오늘도 주인공', '한 번만 더 놀자', '칭찬 대기중', '잘자라멍', '기분 최고개', '쓰담 가능', '내가 해냄'] %}
+                            <button type="button" class="studio-preset {% if loop.first %}is-active{% endif %}" data-studio-text="{{ text }}">{{ text }}</button>
+                            {% endfor %}
+                        </div>
+                    </section>
+
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>말풍선 문구</h3>
+                        </div>
+                        <label class="studio-text-field" for="studio-bubble-text-input">
+                            <span>말풍선 안에 넣을 말</span>
+                            <input type="text" id="studio-bubble-text-input" maxlength="34" value="여기에 입력" placeholder="예: 나도 같이 가">
+                        </label>
+                        <label class="studio-text-field" for="studio-bubble-size-input">
+                            <span>글자 크기</span>
+                            <input type="range" id="studio-bubble-size-input" min="18" max="48" value="28">
+                        </label>
+                    </section>
+
+                    <section class="studio-control-group">
+                        <div class="section-head compact">
+                            <h3>텍스트 색</h3>
+                        </div>
+                        <div class="studio-color-grid">
+                            <button type="button" class="studio-color is-active" data-studio-color="#ffffff" style="--text-color:#ffffff" aria-label="흰색"></button>
+                            <button type="button" class="studio-color" data-studio-color="#2d241e" style="--text-color:#2d241e" aria-label="검정"></button>
+                            <button type="button" class="studio-color" data-studio-color="#f05d44" style="--text-color:#f05d44" aria-label="빨강"></button>
+                            <button type="button" class="studio-color" data-studio-color="#f5bf4f" style="--text-color:#f5bf4f" aria-label="노랑"></button>
+                            <button type="button" class="studio-color" data-studio-color="#cce7db" style="--text-color:#cce7db" aria-label="민트"></button>
+                            <button type="button" class="studio-color" data-studio-color="#ff8bab" style="--text-color:#ff8bab" aria-label="핑크"></button>
+                        </div>
+                    </section>
+
+                    <section class="studio-control-group studio-sticker-library">
+                        <div class="section-head compact">
+                            <h3>인기 스티커</h3>
+                        </div>
+                        <div class="studio-sticker-grid">
+                            {% for sticker in [
+                                ('imagecrown', '왕관', 'fa-solid fa-crown', '#ffd76a', '#7a4f18', 'images/studio-crown-sticker.png'),
+                                ('imageheart', '하트', 'fa-solid fa-heart', '#ff6289', '#b80c3c', 'images/studio-heart-sticker.png'),
+                                ('imageflower', '꽃', 'fa-solid fa-spa', '#ffc0d3', '#ffd460', 'images/studio-flower-sticker.png'),
+                                ('imageglasses', '선글라스', 'fa-solid fa-glasses', '#171717', '#ffffff', 'images/studio-glasses-sticker.png'),
+                                ('imagestar', '별', 'fa-solid fa-star', '#ffd84d', '#ff9f00', 'images/studio-star-sticker.png'),
+                                ('imagebone', '뼈다귀', 'fa-solid fa-bone', '#fff0cf', '#d5975d', 'images/studio-bone-sticker.png'),
+                                ('speechbubble', '말풍선 입력', 'fa-regular fa-comment-dots', '#ffffff', '#2d241e', '')
+                            ] %}
+                            <button type="button" class="studio-sticker {% if loop.first %}is-active{% endif %}" data-studio-sticker="{{ sticker[0] }}" style="--sticker-a:{{ sticker[3] }};--sticker-b:{{ sticker[4] }}" aria-label="{{ sticker[1] }}">
+                                {% if sticker[5] %}
+                                <img class="studio-sticker-preview" src="{{ url_for('static', filename=sticker[5]) }}" alt="" aria-hidden="true">
+                                {% else %}
+                                <i class="{{ sticker[2] }}" aria-hidden="true"></i>
+                                {% endif %}
+                                <span>{{ sticker[1] }}</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
             </section>
         </main>
     </div>
