@@ -3942,15 +3942,6 @@ body {
         min-height: 0;
     }
 
-    .species-choice-grid .species-choice-wide {
-        grid-column: 1 / -1;
-    }
-
-    .species-choice-grid .species-choice-wide span {
-        width: 100%;
-        justify-content: center;
-    }
-
     .persona-step {
         padding: 18px 22px 14px;
     }
