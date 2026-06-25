@@ -12,11 +12,6 @@ from config import load_local_env
 load_local_env()
 
 try:
-    from PIL import Image
-except ImportError:
-    Image = None
-
-try:
     from google import genai
     from google.genai import types
 except ImportError:

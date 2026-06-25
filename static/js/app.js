@@ -116,10 +116,6 @@
         return text.replace(/[\u200b\u200c\u200d\ufeff]/g, "").replace(/[ \t]{2,}/g, " ").trim();
     }
 
-    function meaningfulAiLength(value) {
-        return normalizeAiText(value).replace(/[^0-9A-Za-z가-힣]/g, "").length;
-    }
-
     function expandShortAiTone(value, index = 0) {
         void index;
         return normalizeAiText(value).split(/[,，]/, 1)[0].trim();

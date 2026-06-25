@@ -227,13 +227,6 @@ def persona_defaults():
     }
 
 
-def get_selected_option(question, value):
-    for option in question["options"]:
-        if option["value"] == value:
-            return option
-    return question["options"][0]
-
-
 def score_persona_answers(source):
     base_scores = {name: 0 for name in PERSONA_BASE_ORDER}
     focus_scores = {"snack": 0, "play": 0}

@@ -4,9 +4,14 @@ import logging
 import os
 import re
 
-from ai_client import Image, client, generate_gemini_content
+from ai_client import client, generate_gemini_content
 from persona_prompt import build_caption_persona_prompt_text
 from text_utils import clean_multi_line_text, clean_single_line_text, meaningful_text_length, normalize_ai_text
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 
 logger = logging.getLogger(__name__)
