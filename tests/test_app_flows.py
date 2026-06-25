@@ -1,4 +1,5 @@
 import io
+import base64
 from types import SimpleNamespace
 
 import pytest
@@ -69,7 +70,8 @@ def test_signup_creates_user_and_starts_session(client):
         "/signup",
         data={
             "username": "nari",
-            "password": "pw",
+            "password": "password1",
+            "password_confirmation": "password1",
             "phone_number": "010-1234-5678",
             "pet_name": "나리",
             "pet_species": "강아지",
@@ -91,7 +93,8 @@ def test_signup_accepts_custom_pet_species(client):
         "/signup",
         data={
             "username": "custom",
-            "password": "pw",
+            "password": "password1",
+            "password_confirmation": "password1",
             "phone_number": "010-9999-1111",
             "pet_name": "또리",
             "pet_species": "기타",
@@ -106,6 +109,72 @@ def test_signup_accepts_custom_pet_species(client):
     with client.db.get_db_connection() as conn:
         user = conn.execute("SELECT pet_species FROM users WHERE username = ?", ("custom",)).fetchone()
     assert user["pet_species"] == "웰시코기"
+
+
+def test_signup_username_check_reports_availability(client):
+    create_user(client, "nari", "나리")
+
+    available = client.get("/api/signup/username-check?username=bori")
+    duplicate = client.get("/api/signup/username-check?username=nari")
+
+    assert available.status_code == 200
+    assert available.get_json()["available"] is True
+    assert duplicate.status_code == 200
+    assert duplicate.get_json()["available"] is False
+
+
+def test_signup_rejects_weak_or_mismatched_password(client):
+    base_data = {
+        "username": "weak",
+        "phone_number": "010-1111-2222",
+        "pet_name": "약함",
+        "pet_species": "푸들",
+        "pet_age": "2",
+        "personality": "활발한",
+    }
+
+    weak = client.post(
+        "/signup",
+        data={**base_data, "password": "short1", "password_confirmation": "short1"},
+    )
+    mismatch = client.post(
+        "/signup",
+        data={**base_data, "password": "password1", "password_confirmation": "password2"},
+    )
+
+    assert "8자 이상" in weak.get_data(as_text=True)
+    assert "일치하지 않아요" in mismatch.get_data(as_text=True)
+    with client.db.get_db_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM users WHERE username = ?", ("weak",)).fetchone()[0]
+    assert count == 0
+
+
+def test_signup_saves_optional_profile_avatar(client):
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    )
+
+    response = client.post(
+        "/signup",
+        data={
+            "username": "photo",
+            "password": "password1",
+            "password_confirmation": "password1",
+            "phone_number": "010-3333-4444",
+            "pet_name": "포토",
+            "pet_species": "푸들",
+            "pet_age": "2",
+            "personality": "활발한",
+            "avatar": (io.BytesIO(png_bytes), "avatar.png"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    with client.db.get_db_connection() as conn:
+        user = conn.execute("SELECT avatar_url FROM users WHERE username = ?", ("photo",)).fetchone()
+    assert user["avatar_url"].startswith("/uploads/signup_avatar_")
 
 
 def test_find_account_page_finds_username_and_resets_password(client):

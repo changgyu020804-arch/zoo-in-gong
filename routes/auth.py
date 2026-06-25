@@ -1,11 +1,13 @@
 import sqlite3
 
-from flask import redirect, render_template, request, send_from_directory, session, url_for
+from flask import jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
+from caption_ai import is_supported_image_file
 from db import get_db_connection
 from persona import PERSONA_KEYS, enrich_profile, extract_persona_answers
 from services import get_user_profile
 from text_utils import clean_multi_line_text, clean_single_line_text
+from upload_utils import store_uploaded_file
 
 
 def find_account_context():
@@ -33,6 +35,27 @@ def clean_signup_species(form):
     if pet_species == "기타":
         return clean_single_line_text(form.get("pet_species_other", ""), 50)
     return pet_species
+
+
+def username_is_available(username):
+    if not username:
+        return False
+    with get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE username = ? LIMIT 1",
+            (username,),
+        ).fetchone()
+    return row is None
+
+
+def password_validation_error(password, confirmation):
+    if len(password) < 8:
+        return "비밀번호는 8자 이상으로 만들어 주세요."
+    if not any(character.isdigit() for character in password):
+        return "비밀번호에 숫자를 1개 이상 넣어 주세요."
+    if password != confirmation:
+        return "비밀번호 확인이 일치하지 않아요."
+    return ""
 
 
 def account_lookup_values(fields):
@@ -74,6 +97,25 @@ def reset_password_for_account(fields, new_password):
 
 
 def register_auth_routes(app):
+    @app.route("/api/signup/username-check")
+    def api_signup_username_check():
+        username = clean_single_line_text(request.args.get("username", ""), 50)
+        if not username:
+            return jsonify(
+                {
+                    "available": False,
+                    "message": "아이디를 입력해 주세요.",
+                }
+            )
+
+        available = username_is_available(username)
+        return jsonify(
+            {
+                "available": available,
+                "message": "사용할 수 있는 아이디예요." if available else "이미 사용 중인 아이디예요.",
+            }
+        )
+
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
@@ -130,6 +172,7 @@ def register_auth_routes(app):
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
             password = clean_single_line_text(request.form["password"], 100)
+            password_confirmation = clean_single_line_text(request.form.get("password_confirmation", ""), 100)
             phone_number = clean_single_line_text(request.form.get("phone_number", ""), 30)
             pet_name = clean_single_line_text(request.form["pet_name"], 50)
             pet_species = clean_signup_species(request.form)
@@ -147,6 +190,22 @@ def register_auth_routes(app):
             if not all([username, password, phone_number, pet_name, pet_species, personality]):
                 return render_template("signup.html", error="필수 정보를 모두 입력해 주세요.")
 
+            password_error = password_validation_error(password, password_confirmation)
+            if password_error:
+                return render_template("signup.html", error=password_error)
+
+            if not username_is_available(username):
+                return render_template("signup.html", error="이미 사용 중인 아이디예요.")
+
+            avatar_url = ""
+            avatar_path = None
+            avatar_file = request.files.get("avatar")
+            if avatar_file and avatar_file.filename:
+                avatar_path, avatar_url = store_uploaded_file(avatar_file, "signup_avatar")
+                if not is_supported_image_file(avatar_path):
+                    avatar_path.unlink(missing_ok=True)
+                    return render_template("signup.html", error="프로필 사진은 이미지 파일만 사용할 수 있어요.")
+
             temp_profile = enrich_profile(
                 {
                     "username": username,
@@ -156,7 +215,7 @@ def register_auth_routes(app):
                     "activity_level": activity_level,
                     "pet_likes": pet_likes,
                     "pet_dislikes": pet_dislikes,
-                    "avatar_url": "",
+                    "avatar_url": avatar_url,
                     "bio": f"{pet_name}의 첫 인사예요. 오늘부터 주인공 기록을 시작해요.",
                     "status_message": "새 친구 찾는 중",
                     "favorite_place": "",
@@ -194,7 +253,7 @@ def register_auth_routes(app):
                             pet_likes,
                             pet_dislikes,
                             phone_number,
-                            "",
+                            avatar_url,
                             temp_profile["bio"],
                             temp_profile["status_message"],
                             temp_profile["favorite_place"],
@@ -207,6 +266,8 @@ def register_auth_routes(app):
                 session["username"] = username
                 return redirect(url_for("signup_complete"))
             except sqlite3.IntegrityError:
+                if avatar_path:
+                    avatar_path.unlink(missing_ok=True)
                 return render_template("signup.html", error="이미 사용 중인 아이디예요.")
 
         return render_template("signup.html")
