@@ -2870,7 +2870,11 @@ button.grid-post {
 
 .tag-choice input {
     position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
     opacity: 0;
+    overflow: hidden;
     pointer-events: none;
 }
 
@@ -2936,7 +2940,11 @@ button.grid-post {
 
 .persona-choice input {
     position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
     opacity: 0;
+    overflow: hidden;
     pointer-events: none;
 }
 
@@ -3761,6 +3769,31 @@ body {
         padding-bottom: calc(92px + env(safe-area-inset-bottom));
     }
 
+    .mobile-topbar {
+        min-height: 70px;
+        padding: 8px 4px 10px;
+        border-bottom: 1px solid rgba(232, 211, 191, 0.58);
+        background: rgba(249, 242, 228, 0.94);
+        backdrop-filter: blur(14px);
+    }
+
+    .mobile-topbar .brand-image-mark,
+    .mobile-topbar .brand-logo-image {
+        width: 154px;
+        min-height: 52px;
+        height: 52px;
+    }
+
+    .mobile-topbar .brand-image-mark {
+        border-radius: 14px;
+    }
+
+    .mobile-topbar .icon-button {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+    }
+
     .composer-card {
         min-width: 0;
         padding: 16px;
@@ -3827,6 +3860,132 @@ body {
     .mobile-nav-button i {
         width: auto;
         font-size: 1.08rem;
+    }
+
+    .dog-social-card .post-author {
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+    }
+
+    .dog-social-card .post-author > div,
+    .dog-social-card .profile-name-link,
+    .dog-social-card .meta-line {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .dog-social-card .post-header-tools {
+        flex: 0 0 auto;
+    }
+
+    .profile-title-row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .profile-action-row {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .studio-canvas-panel > .section-head {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 12px;
+    }
+
+    .studio-canvas-panel > .section-head h1 {
+        margin-bottom: 0;
+        font-size: 1.65rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .studio-action-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .studio-action-row .primary-button,
+    .studio-action-row .ghost-button {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        padding-inline: 10px;
+    }
+
+    .studio-sticker-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .drawer,
+    .wide-drawer {
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        height: min(82dvh, 780px);
+        padding: 18px;
+    }
+
+    .messages-layout {
+        grid-template-rows: minmax(120px, 160px) minmax(0, 1fr);
+        height: calc(min(82dvh, 780px) - 82px);
+    }
+
+    .message-room {
+        min-height: 0;
+    }
+
+    .species-choice-grid .species-choice-wide {
+        grid-column: 1 / -1;
+    }
+
+    .species-choice-grid .species-choice-wide span {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .persona-step {
+        padding: 18px 22px 14px;
+    }
+
+    .persona-step h1 {
+        margin-bottom: 12px;
+        font-size: 1.75rem;
+    }
+
+    .persona-step .step-desc {
+        margin-bottom: 16px;
+    }
+
+    .persona-page-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .persona-mini-card {
+        padding: 13px;
+    }
+
+    .persona-mini-card legend {
+        font-size: 0.9rem;
+    }
+
+    .persona-mini-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .persona-choice span {
+        min-height: 42px;
+        padding: 7px;
+        font-size: 0.82rem;
     }
 }
 

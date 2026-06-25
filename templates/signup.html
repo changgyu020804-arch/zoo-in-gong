@@ -46,7 +46,7 @@
                         <legend>어떤 친구인가요?</legend>
                         <div class="species-choice-grid">
                             {% for species in ['푸들', '말티즈', '포메라니안', '시츄', '비숑', '치와와', '진돗개', '골든 리트리버', '래브라도 리트리버', '웰시코기', '닥스훈트', '프렌치 불도그', '슈나우저', '보더콜리', '믹스견'] %}
-                            <label class="tag-choice">
+                            <label class="tag-choice{% if species == '래브라도 리트리버' %} species-choice-wide{% endif %}">
                                 <input type="radio" name="pet_species" value="{{ species }}" required>
                                 <span>{{ species }}</span>
                             </label>
