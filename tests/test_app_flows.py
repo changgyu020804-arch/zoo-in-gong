@@ -427,7 +427,7 @@ def test_ai_comment_short_result_uses_fallback(monkeypatch):
     assert len("".join(ch for ch in comment if ch.isalnum())) >= 8
 
 
-def test_message_tone_suggestions_expand_too_short_results():
+def test_message_tone_suggestions_keep_short_results_simple():
     from message_tone import suggest_message_tones
 
     suggestions = suggest_message_tones(
@@ -436,7 +436,20 @@ def test_message_tone_suggestions_expand_too_short_results():
     )
 
     assert suggestions
-    assert all(len("".join(ch for ch in item if ch.isalnum())) >= 8 for item in suggestions)
+    assert all("," not in item for item in suggestions)
+    assert all("꼬리로" not in item and "발바닥까지" not in item and "내 마음이" not in item for item in suggestions)
+    assert all("멍" in item or "개" in item for item in suggestions)
+
+
+def test_message_tone_suggestions_remove_added_comma_phrase():
+    from message_tone import suggest_message_tones
+
+    suggestions = suggest_message_tones(
+        {"persona": "애교 스트라이커형 놀이파", "personality": "애교많은", "pet_name": "나리"},
+        "안녕, 꼬리로 바로 접수했개",
+    )
+
+    assert suggestions == ["안녕하개", "안녕멍", "반갑개"]
 
 
 def test_caption_hashtag_hint_mixes_persona_activity_and_general_tags():

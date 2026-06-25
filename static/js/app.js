@@ -121,12 +121,8 @@
     }
 
     function expandShortAiTone(value, index = 0) {
-        const text = normalizeAiText(value);
-        if (!text || meaningfulAiLength(text) >= 8) return text;
-
-        const endings = ["꼬리로 바로 접수했개", "발바닥까지 기분이 전해졌멍", "내 마음이 먼저 반응했개"];
-        const ending = endings[index % endings.length];
-        return text.endsWith("?") ? `${text} ${ending}?` : `${text}, ${ending}`;
+        void index;
+        return normalizeAiText(value).split(/[,，]/, 1)[0].trim();
     }
 
     function formatShortTime(value) {
@@ -3170,30 +3166,50 @@
         const text = normalizeAiText(body);
         const compact = text.replace(/[\s!~.,]+/g, "");
         const common = {
-            "안녕하세요": ["안녕하시나멍", "안녕하시개", "반갑다멍"],
-            "안녕": ["안녕하개", "안녕멍", "반가워멍"],
-            "하이": ["하이멍", "하이하개", "반갑다멍"],
-            "뭐해": ["뭐하개?", "지금 뭐하나멍?", "꼬리 흔들 시간 있개?"],
-            "뭐해?": ["뭐하개?", "지금 뭐하나멍?", "꼬리 흔들 시간 있개?"],
-            "산책가자": ["발바닥 시간 어때멍?", "밖에 재미 냄새 맡으러 가자개", "문 앞에서 꼬리 대기 중이개"],
-            "놀자": ["같이 놀자멍", "놀 준비 됐개?", "장난감이 나를 부른다개"],
-            "고마워": ["고맙다멍", "고맙개", "내 꼬리가 고맙다고 흔들린다멍"],
+            "안녕하세요": ["안녕하개", "안녕하세요멍", "반갑개"],
+            "안녕": ["안녕하개", "안녕멍", "반갑개"],
+            "하이": ["하이멍", "반갑개", "안녕하개"],
+            "뭐해": ["뭐하개?", "뭐 하냐멍?", "지금 뭐 해멍?"],
+            "산책가자": ["산책 가자멍", "같이 나가개", "바깥 구경 가자멍"],
+            "놀자": ["같이 놀자멍", "놀자개", "한 번 더 놀개?"],
+            "고마워": ["고맙다멍", "고맙개", "정말 고마워멍"],
         };
         if (common[compact]) return common[compact].map(expandShortAiTone);
 
-        let dogText = text;
-        if (!/[멍개]$/.test(dogText)) {
-            if (dogText.endsWith("?")) dogText = `${dogText.slice(0, -1).trim()}하개?`;
-            else if (dogText.endsWith("요")) dogText = `${dogText.slice(0, -1)}다멍`;
-            else dogText = `${dogText}멍`;
+        const plain = text.split(/[,，]/, 1)[0].trim();
+        const question = plain.endsWith("?");
+        const base = plain.replace(/[!?~.]+$/g, "").trim();
+        let meongText = base;
+        if (!/[멍개]$/.test(meongText)) {
+            if (meongText.endsWith("해요")) meongText = `${meongText.slice(0, -2)}한다멍`;
+            else if (meongText.endsWith("요")) meongText = `${meongText.slice(0, -1)}멍`;
+            else if (meongText.endsWith("해")) meongText = `${meongText.slice(0, -1)}한다멍`;
+            else meongText = `${meongText}멍`;
         }
-        const soften = (value) =>
-            String(value || "")
-                .replaceAll("순찰", "동네 체크")
-                .replaceAll("리드줄", "집사 손")
-                .replaceAll("코스", "우리 길")
-                .replaceAll("산책", "바깥 구경");
-        return [soften(dogText), `${soften(dogText)} 🐾`].map(expandShortAiTone).filter(Boolean);
+        if (question) meongText += "?";
+
+        let gaeText = base;
+        const replacements = [
+            ["하세요", "하개"],
+            ["해요", "하개"],
+            ["해줘", "해주개"],
+            ["할래", "할개"],
+            ["갈래", "갈개"],
+            ["해", "하개"],
+            ["가자", "가개"],
+            ["보자", "보개"],
+            ["놀자", "놀개"],
+            ["고마워", "고맙개"],
+            ["좋아", "좋개"],
+        ];
+        if (!/[멍개]$/.test(gaeText)) {
+            const replacement = replacements.find(([before]) => gaeText.endsWith(before));
+            gaeText = replacement
+                ? `${gaeText.slice(0, -replacement[0].length)}${replacement[1]}`
+                : `${gaeText}개`;
+        }
+        if (question) gaeText += "?";
+        return [...new Set([meongText, gaeText])].map(expandShortAiTone).filter(Boolean);
     }
 
     function scheduleMessageTonePreview() {
