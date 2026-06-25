@@ -246,6 +246,97 @@ def test_upload_creates_post_with_caption(client):
     assert post["caption"] == "테스트 캡션"
 
 
+def test_upload_adds_optional_growth_record_without_blocking_normal_posts(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    response = client.post(
+        "/upload",
+        data={
+            "activity_text": "처음으로 공원 산책",
+            "taken_on": "2026-06-20",
+            "weight_kg": "4.7",
+            "growth_milestone": "첫 산책",
+            "file": (io.BytesIO(b"fake image bytes"), "first-walk.jpg"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    post_payload = response.get_json()["post"]
+    assert post_payload["taken_on"] == "2026-06-20"
+    assert post_payload["weight_kg"] == 4.7
+    assert post_payload["growth_milestone"] == "첫 산책"
+    assert post_payload["pet_age_at_post"] == 3
+
+    with client.db.get_db_connection() as conn:
+        post = conn.execute(
+            """
+            SELECT taken_on, weight_kg, growth_milestone, pet_age_at_post
+            FROM posts
+            WHERE username = ?
+            """,
+            ("nari",),
+        ).fetchone()
+    assert dict(post) == {
+        "taken_on": "2026-06-20",
+        "weight_kg": 4.7,
+        "growth_milestone": "첫 산책",
+        "pet_age_at_post": 3,
+    }
+
+
+def test_growth_album_includes_existing_posts_and_growth_metadata(client):
+    create_user(client, "nari", "나리")
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO posts (
+                image_url, caption, username, activity_text, created_at,
+                taken_on, weight_kg, growth_milestone, pet_age_at_post
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "/static/uploads/first-walk.jpg",
+                "첫 산책 성공",
+                "nari",
+                "처음으로 공원 산책",
+                "2026-06-21 01:00:00",
+                "2026-06-20",
+                4.7,
+                "첫 산책",
+                3,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO posts (image_url, caption, username, activity_text, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "/static/uploads/everyday.jpg",
+                "평범한 하루",
+                "nari",
+                "소파에서 낮잠",
+                "2026-05-03 01:00:00",
+            ),
+        )
+        conn.commit()
+
+    login_as(client, "nari")
+    response = client.get("/profile/nari/album")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "나리의 성장 앨범" in html
+    assert "첫 산책" in html
+    assert "4.7kg" in html
+    assert "2026년 06월" in html
+    assert "2026년 05월" in html
+    assert "평범한 하루" in html
+
+
 def test_like_comment_and_profile_update_flow(client):
     create_user(client, "owner", "오너")
     create_user(client, "friend", "친구")

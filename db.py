@@ -31,6 +31,10 @@ POST_COLUMNS = [
     ("activity_text", "TEXT DEFAULT ''"),
     ("created_at", "TEXT DEFAULT ''"),
     ("caption_status", "TEXT DEFAULT 'ready'"),
+    ("taken_on", "TEXT DEFAULT ''"),
+    ("weight_kg", "REAL"),
+    ("growth_milestone", "TEXT DEFAULT ''"),
+    ("pet_age_at_post", "INTEGER"),
 ]
 
 MESSAGE_COLUMNS = [

@@ -28,6 +28,9 @@
     const fileInput = document.getElementById("file-input");
     const fileName = document.getElementById("file-name");
     const activityInput = document.getElementById("activity-input");
+    const growthTakenOn = document.getElementById("growth-taken-on");
+    const growthWeight = document.getElementById("growth-weight");
+    const growthMilestone = document.getElementById("growth-milestone");
     const filePickerButton = document.querySelector(".js-open-file-picker");
     const uploadPreviewImage = document.getElementById("upload-preview-image");
     const loading = document.getElementById("loading");
@@ -470,6 +473,16 @@
             uploadPreviewImage.hidden = true;
         }
         if (fileName) fileName.textContent = "오늘 올릴 강아지 사진을 선택해 주세요";
+        setDefaultGrowthDate();
+    }
+
+    function setDefaultGrowthDate() {
+        if (!growthTakenOn || growthTakenOn.value) return;
+        const now = new Date();
+        const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 10);
+        growthTakenOn.value = localDate;
     }
 
     function applyCaptionUpdate(post) {
@@ -1810,6 +1823,7 @@
 
     function initUploadForm() {
         if (!fileInput) return;
+        setDefaultGrowthDate();
 
         if (filePickerButton) {
             filePickerButton.addEventListener("click", () => fileInput.click());
@@ -1905,6 +1919,9 @@
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
             formData.append("activity_text", activityText);
+            if (growthTakenOn?.value) formData.append("taken_on", growthTakenOn.value);
+            if (growthWeight?.value) formData.append("weight_kg", growthWeight.value);
+            if (growthMilestone?.value) formData.append("growth_milestone", growthMilestone.value);
             const previewInput = document.getElementById("caption-preview-input");
             if (previewInput && previewInput.value.trim()) {
                 formData.append("caption_override", previewInput.value.trim());

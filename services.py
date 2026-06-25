@@ -1113,6 +1113,10 @@ def get_posts(username=None, viewer_username=None, post_ids=None):
             p.caption_status,
             p.activity_text,
             p.created_at,
+            p.taken_on,
+            p.weight_kg,
+            p.growth_milestone,
+            p.pet_age_at_post,
             p.likes,
             p.username AS post_username,
             {profile_columns}
@@ -1178,6 +1182,10 @@ def get_posts(username=None, viewer_username=None, post_ids=None):
                 "caption_text": caption_html_to_text(caption),
                 "activity_text": activity_text,
                 "created_at": row["created_at"] or "",
+                "taken_on": row["taken_on"] or "",
+                "weight_kg": row["weight_kg"],
+                "growth_milestone": row["growth_milestone"] or "",
+                "pet_age_at_post": row["pet_age_at_post"],
                 "likes": row["likes"] or 0,
                 "liked_by_viewer": row["id"] in liked_post_ids,
                 "bookmarked_by_viewer": row["id"] in bookmarked_post_ids,
@@ -1198,6 +1206,58 @@ def get_posts(username=None, viewer_username=None, post_ids=None):
             ).lower()
             posts.append(post)
     return posts
+
+
+def get_growth_album(username, viewer_username=None):
+    posts = get_posts(username, viewer_username=viewer_username)
+    posts.sort(
+        key=lambda post: (
+            post.get("taken_on") or (post.get("created_at") or "")[:10],
+            post.get("created_at") or "",
+            post.get("id") or 0,
+        ),
+        reverse=True,
+    )
+    groups = []
+    groups_by_month = {}
+
+    for post in posts:
+        album_date = (post.get("taken_on") or post.get("created_at") or "")[:10]
+        try:
+            parsed_date = datetime.strptime(album_date, "%Y-%m-%d")
+            month_key = parsed_date.strftime("%Y-%m")
+            month_label = parsed_date.strftime("%Y년 %m월")
+            date_label = parsed_date.strftime("%m월 %d일")
+        except ValueError:
+            month_key = "unknown"
+            month_label = "날짜를 기록하지 않은 순간"
+            date_label = "기록일 없음"
+
+        post["album_date"] = album_date
+        post["album_date_label"] = date_label
+        post["age_label"] = (
+            f"{post['pet_age_at_post']}살"
+            if post.get("pet_age_at_post") is not None
+            else ""
+        )
+        post["weight_label"] = (
+            f"{float(post['weight_kg']):g}kg"
+            if post.get("weight_kg") is not None
+            else ""
+        )
+
+        if month_key not in groups_by_month:
+            group = {"key": month_key, "label": month_label, "posts": []}
+            groups_by_month[month_key] = group
+            groups.append(group)
+        groups_by_month[month_key]["posts"].append(post)
+
+    return {
+        "groups": groups,
+        "post_count": len(posts),
+        "milestone_count": sum(bool(post.get("growth_milestone")) for post in posts),
+        "weight_count": sum(post.get("weight_kg") is not None for post in posts),
+    }
 
 
 def get_post(post_id, viewer_username=None):

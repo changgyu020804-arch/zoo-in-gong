@@ -12,6 +12,7 @@ from services import (
     get_following_profiles,
     get_following_usernames,
     get_friend_suggestions,
+    get_growth_album,
     get_posts,
     get_profile_stats,
     get_user_profile,
@@ -71,6 +72,36 @@ def register_page_routes(app):
         if not session.get("username"):
             return redirect(url_for("login"))
         return render_profile_page(clean_single_line_text(target_username, 80))
+
+    @app.route("/profile/<target_username>/album")
+    def growth_album(target_username):
+        viewer_username = session.get("username")
+        if not viewer_username:
+            return redirect(url_for("login"))
+
+        target_username = clean_single_line_text(target_username, 80)
+        with get_db_connection() as conn:
+            target = conn.execute(
+                "SELECT username FROM users WHERE username = ?",
+                (target_username,),
+            ).fetchone()
+        if not target:
+            return redirect(url_for("index"))
+
+        album_profile = get_user_profile(target_username)
+        viewer_profile = get_user_profile(viewer_username)
+        stats = get_profile_stats(target_username)
+        attach_profile_summary(album_profile, stats)
+        album = get_growth_album(target_username, viewer_username=viewer_username)
+
+        return render_template(
+            "growth_album.html",
+            user=album_profile,
+            viewer=viewer_profile,
+            album=album,
+            stats=stats,
+            can_edit=target_username == viewer_username,
+        )
 
     @app.route("/friends")
     def friends():

@@ -199,6 +199,39 @@
                         <span>가입할 때 저장한 성향과 집사 메모까지 반영해 캡션을 만듭니다.</span>
                     </label>
                     <input type="file" id="file-input" accept="image/*" required>
+                    <details class="growth-record-fields">
+                        <summary>
+                            <span><i class="fa-solid fa-seedling"></i> 성장 기록도 남기기</span>
+                            <small>선택 사항</small>
+                        </summary>
+                        <div class="growth-record-grid">
+                            <label>
+                                <span>사진을 찍은 날</span>
+                                <input type="date" id="growth-taken-on" name="taken_on">
+                            </label>
+                            <label>
+                                <span>몸무게</span>
+                                <div class="unit-input">
+                                    <input type="number" id="growth-weight" name="weight_kg" min="0.1" max="150" step="0.1" inputmode="decimal" placeholder="선택">
+                                    <span>kg</span>
+                                </div>
+                            </label>
+                            <label class="full-span">
+                                <span>기억하고 싶은 순간</span>
+                                <select id="growth-milestone" name="growth_milestone">
+                                    <option value="">평범한 일상</option>
+                                    <option value="첫 산책">첫 산책</option>
+                                    <option value="생일">생일</option>
+                                    <option value="예방접종">예방접종</option>
+                                    <option value="첫 미용">첫 미용</option>
+                                    <option value="새로운 친구">새로운 친구</option>
+                                    <option value="훈련 성공">훈련 성공</option>
+                                    <option value="특별한 하루">특별한 하루</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p>입력하지 않아도 게시물은 성장 앨범에 자동으로 저장돼요.</p>
+                    </details>
                     <div class="caption-preview-box" id="caption-preview-box" hidden>
                         <div class="caption-preview-head">
                             <strong>AI 캡션 미리보기</strong>
@@ -665,7 +698,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=message-tone-20260625a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=growth-album-20260625a"></script>
 </body>
 </html>
 

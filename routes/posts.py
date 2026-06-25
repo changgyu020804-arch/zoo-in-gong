@@ -1,9 +1,11 @@
 from html import escape
+from datetime import datetime
 import gc
 import logging
 import os
 from threading import BoundedSemaphore, Thread
 import time
+from zoneinfo import ZoneInfo
 
 from flask import jsonify, request
 
@@ -27,6 +29,37 @@ PENDING_CAPTION_TEXT = "AI 캡션을 만들고 있어요..."
 PENDING_CAPTION_HTML = escape(PENDING_CAPTION_TEXT)
 CAPTION_WORKER_CONCURRENCY = max(1, int(os.environ.get("CAPTION_WORKER_CONCURRENCY", "1")))
 _caption_worker_semaphore = BoundedSemaphore(CAPTION_WORKER_CONCURRENCY)
+GROWTH_MILESTONES = {
+    "",
+    "첫 산책",
+    "생일",
+    "예방접종",
+    "첫 미용",
+    "새로운 친구",
+    "훈련 성공",
+    "특별한 하루",
+}
+
+
+def normalize_taken_on(value):
+    text = clean_single_line_text(value, 10)
+    if not text:
+        return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+
+
+def normalize_weight_kg(value):
+    text = clean_single_line_text(value, 12)
+    if not text:
+        return None
+    try:
+        weight = round(float(text), 2)
+    except (TypeError, ValueError):
+        return None
+    return weight if 0 < weight <= 150 else None
 
 
 def _timed_call(label, callback, *args, **kwargs):
@@ -122,6 +155,11 @@ def register_post_routes(app):
         if not activity_text:
             return jsonify({"error": "오늘 무엇을 했는지 활동 내용을 적어주세요."}), 400
         caption_override = clean_multi_line_text(request.form.get("caption_override", ""), 700)
+        taken_on = normalize_taken_on(request.form.get("taken_on", ""))
+        weight_kg = normalize_weight_kg(request.form.get("weight_kg", ""))
+        growth_milestone = clean_single_line_text(request.form.get("growth_milestone", ""), 40)
+        if growth_milestone not in GROWTH_MILESTONES:
+            growth_milestone = ""
 
         filepath, image_url = store_uploaded_file(file)
 
@@ -148,10 +186,23 @@ def register_post_routes(app):
         with get_db_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO posts (image_url, caption, caption_status, username, activity_text, created_at)
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO posts (
+                    image_url, caption, caption_status, username, activity_text, created_at,
+                    taken_on, weight_kg, growth_milestone, pet_age_at_post
+                )
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
                 """,
-                (image_url, caption, caption_status, username, activity_text),
+                (
+                    image_url,
+                    caption,
+                    caption_status,
+                    username,
+                    activity_text,
+                    taken_on,
+                    weight_kg,
+                    growth_milestone,
+                    profile.get("pet_age"),
+                ),
             )
             post_id = cursor.lastrowid
             conn.commit()

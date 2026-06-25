@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = user.pet_name ~ '의 성장 앨범' %}
+{% include 'partials/head.html' %}
+<body data-page="growth-album">
+    <div class="app-shell">
+        {% set sidebar_variant = 'album' %}
+        {% set sidebar_active = 'profile' %}
+        {% set sidebar_profile = viewer %}
+        {% set sidebar_chip_button = false %}
+        {% include 'partials/app_sidebar.html' %}
+
+        <main class="content-column album-content-column">
+            {% set topbar_action = none %}
+            {% set topbar_href = url_for('public_profile', target_username=user.username) %}
+            {% set topbar_icon = 'fa-solid fa-arrow-left' %}
+            {% set topbar_label = '프로필로 돌아가기' %}
+            {% include 'partials/mobile_topbar.html' %}
+
+            <section class="album-hero">
+                <div class="album-hero-copy">
+                    <p class="eyebrow">GROWTH ALBUM</p>
+                    <h1>{{ user.pet_name }}의 성장 앨범</h1>
+                    <p>평범한 하루부터 특별한 순간까지, 올린 게시물이 날짜순으로 차곡차곡 모여요.</p>
+                </div>
+                <span class="avatar avatar-xl avatar-ring">
+                    {% if user.display_avatar_url %}
+                    <img src="{{ user.display_avatar_url }}" alt="{{ user.pet_name }}">
+                    {% else %}
+                    <span>{{ user.initial }}</span>
+                    {% endif %}
+                </span>
+            </section>
+
+            <section class="album-summary" aria-label="성장 앨범 요약">
+                <div><strong>{{ album.post_count }}</strong><span>기록된 순간</span></div>
+                <div><strong>{{ album.milestone_count }}</strong><span>특별한 성장 기록</span></div>
+                <div><strong>{{ album.weight_count }}</strong><span>몸무게 기록</span></div>
+            </section>
+
+            {% if album.groups %}
+            <div class="album-timeline">
+                {% for group in album.groups %}
+                <section class="album-month">
+                    <div class="album-month-heading">
+                        <span></span>
+                        <h2>{{ group.label }}</h2>
+                    </div>
+                    <div class="album-grid">
+                        {% for post in group.posts %}
+                        <article class="album-card">
+                            <a class="album-image-link" href="{{ url_for('index') }}#post-{{ post.id }}">
+                                <img src="{{ post.image_url }}" alt="{{ post.pet_name }}의 {{ post.album_date_label }} 기록">
+                                {% if post.growth_milestone %}
+                                <span class="album-milestone"><i class="fa-solid fa-star"></i> {{ post.growth_milestone }}</span>
+                                {% endif %}
+                            </a>
+                            <div class="album-card-copy">
+                                <div class="album-card-meta">
+                                    <strong>{{ post.album_date_label }}</strong>
+                                    <span>
+                                        {% if post.age_label %}{{ post.age_label }}{% endif %}
+                                        {% if post.age_label and post.weight_label %} · {% endif %}
+                                        {% if post.weight_label %}{{ post.weight_label }}{% endif %}
+                                    </span>
+                                </div>
+                                <p>{{ post.activity_text or post.caption_text }}</p>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            </div>
+            {% else %}
+            <section class="album-empty">
+                <i class="fa-regular fa-images"></i>
+                <h2>첫 성장 기록을 기다리고 있어요.</h2>
+                {% if can_edit %}
+                <p>평소처럼 게시물을 하나 올리면 이곳에 자동으로 저장돼요.</p>
+                <a class="primary-button" href="{{ url_for('index') }}#composer-section">첫 사진 올리기</a>
+                {% else %}
+                <p>{{ user.pet_name }}의 첫 번째 순간이 곧 여기에 기록될 거예요.</p>
+                {% endif %}
+            </section>
+            {% endif %}
+        </main>
+
+        <aside class="right-rail album-side-rail">
+            <section class="panel-card">
+                <p class="eyebrow">앨범 안내</p>
+                <h3>게시물이 곧 성장 기록이에요.</h3>
+                <p>별도 앨범 업로드 없이 기존 게시물이 자동으로 모입니다.</p>
+                {% if can_edit %}
+                <a class="primary-button full-width" href="{{ url_for('index') }}#composer-section">새 순간 기록하기</a>
+                {% endif %}
+                <a class="ghost-button full-width" href="{{ url_for('public_profile', target_username=user.username) }}">프로필로 돌아가기</a>
+            </section>
+        </aside>
+    </div>
+
+    <nav class="mobile-nav album-mobile-nav">
+        <a class="mobile-nav-button" href="{{ url_for('index') }}" aria-label="홈"><i class="fa-solid fa-house"></i></a>
+        <a class="mobile-nav-button is-active" href="{{ url_for('growth_album', target_username=user.username) }}" aria-label="성장 앨범"><i class="fa-solid fa-images"></i></a>
+        {% if can_edit %}
+        <a class="mobile-nav-button" href="{{ url_for('index') }}#composer-section" aria-label="새 게시물"><i class="fa-regular fa-square-plus"></i></a>
+        {% endif %}
+        <a class="mobile-nav-button" href="{{ url_for('public_profile', target_username=user.username) }}" aria-label="프로필"><i class="fa-regular fa-circle-user"></i></a>
+    </nav>
+</body>
+</html>

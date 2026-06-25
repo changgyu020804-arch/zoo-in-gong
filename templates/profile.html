@@ -36,9 +36,19 @@
                         <div class="profile-title-row">
                             <h1>{{ user.pet_name }}</h1>
                             {% if can_edit %}
-                            <button class="primary-button" data-nav-action="settings">프로필 편집</button>
+                            <div class="profile-action-row">
+                                <a class="ghost-button" href="{{ url_for('growth_album', target_username=user.username) }}">
+                                    <i class="fa-solid fa-images"></i>
+                                    성장 앨범
+                                </a>
+                                <button class="primary-button" data-nav-action="settings">프로필 편집</button>
+                            </div>
                             {% else %}
                             <div class="profile-action-row">
+                                <a class="ghost-button" href="{{ url_for('growth_album', target_username=user.username) }}">
+                                    <i class="fa-solid fa-images"></i>
+                                    성장 앨범
+                                </a>
                                 <button
                                     type="button"
                                     class="follow-button js-follow-button {% if is_following %}is-following{% endif %}"
@@ -462,7 +472,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=message-tone-20260625a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=growth-album-20260625a"></script>
 </body>
 </html>
 
