@@ -157,7 +157,7 @@ HASHTAG_BANKS = {
         "#안전거리제로",
         "#집사충전중",
     ],
-    "인정욕구형": [
+    "시선강탈 스타형": [
         "#오늘의주인공",
         "#박수는꼬리로",
         "#포즈값청구",
@@ -665,7 +665,7 @@ def _fallback_body_line(profile, activity_text):
             f"{activity}. 집사 옆에서 확인하니까 마음이 더 안정됐다멍 🐾 "
             f"{personality_line}"
         )
-    if "인정욕구형" in persona:
+    if "시선강탈 스타형" in persona:
         ending = (
             "칭찬 담당자는 박수 한 번 크게 준비해도 좋다개 ✨"
             if not snack_allowed

@@ -287,7 +287,7 @@ def derive_persona_details(profile):
     }
 
     special_base_map = {
-        "spotlight": "인정욕구형",
+        "spotlight": "시선강탈 스타형",
         "zen": "평화주의 명상형",
     }
     if values["persona_energy"] in special_base_map:

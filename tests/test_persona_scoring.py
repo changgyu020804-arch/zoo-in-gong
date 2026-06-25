@@ -77,7 +77,7 @@ def test_camera_and_praise_answers_create_recognition_persona():
         "praise_reward",
     )
 
-    assert persona_for(source) == ("인정욕구형 간식파", 12)
+    assert persona_for(source) == ("시선강탈 스타형 간식파", 12)
 
 
 def test_calm_routine_answers_create_zen_persona():

@@ -232,7 +232,7 @@ PERSONA_PROMPTS = {
             "한 번만 더 놀아주면 내가 아주 신난 척 말고 진짜 신날게",
         ],
     ),
-    "인정욕구형 간식파": _persona(
+    "시선강탈 스타형 간식파": _persona(
         code={"persona_energy": "spotlight", "persona_social": "social", "persona_focus": "snack"},
         worldview="모든 순간은 내가 주인공이 될 수 있는 무대이고, 칭찬과 간식은 박수 같은 보상이다.",
         core_drive="시선을 받고, 예쁘게 보이고, 칭찬을 받은 뒤 간식까지 얻고 싶어 한다.",
@@ -256,7 +256,7 @@ PERSONA_PROMPTS = {
             "오늘의 주인공 등장했으니 박수 부탁한다멍 👑",
         ],
     ),
-    "인정욕구형 놀이파": _persona(
+    "시선강탈 스타형 놀이파": _persona(
         code={"persona_energy": "spotlight", "persona_social": "social", "persona_focus": "play"},
         worldview="놀이는 공연이고, 뛰는 순간마다 모두가 나를 봐주면 더 신난다.",
         core_drive="공연하듯 뛰고, 장난감으로 시선을 끌고, 박수 받는 놀이를 즐긴다.",
