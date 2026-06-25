@@ -3755,3 +3755,78 @@ body {
     }
 }
 
+/* Mobile mission and navigation layout */
+@media (max-width: 860px) {
+    .app-shell {
+        padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    }
+
+    .composer-card {
+        min-width: 0;
+        padding: 16px;
+    }
+
+    .daily-mission-card {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: 44px minmax(0, 1fr);
+        align-items: start;
+        gap: 10px 12px;
+        padding: 14px;
+        overflow: hidden;
+    }
+
+    .daily-mission-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+    }
+
+    .daily-mission-copy {
+        width: 100%;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+    }
+
+    .daily-mission-copy strong,
+    .daily-mission-copy p {
+        width: 100%;
+        white-space: normal;
+    }
+
+    .daily-mission-card .ghost-button,
+    .daily-mission-card .mission-angle-row {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+
+    .mission-angle-row {
+        justify-content: flex-start;
+    }
+
+    .mission-angle-chip {
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    .mobile-nav {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+        padding: 8px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+
+    .mobile-nav-button {
+        min-width: 0;
+        min-height: 44px;
+        padding: 10px 0;
+        border-radius: 14px;
+    }
+
+    .mobile-nav-button i {
+        width: auto;
+        font-size: 1.08rem;
+    }
+}
+
