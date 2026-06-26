@@ -3042,6 +3042,12 @@ button.grid-post {
     color: var(--accent-strong);
 }
 
+.persona-mini-card.needs-answer,
+.field-line.needs-answer {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 107, 87, 0.12);
+}
+
 .tag-choice span {
     display: inline-flex;
     align-items: center;
@@ -3058,6 +3064,15 @@ button.grid-post {
 .signup-step-footer {
     position: relative;
     padding: 14px 36px 24px;
+}
+
+.step-validation-message {
+    margin: 0 0 10px;
+    color: var(--accent-strong);
+    font-size: 0.84rem;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
 }
 
 .signup-step-footer .primary-button {
@@ -4382,6 +4397,30 @@ body {
 
     .message-room {
         min-height: 0;
+    }
+
+    .signup-flow-page {
+        align-items: start;
+        padding: 0;
+    }
+
+    .signup-phone {
+        width: 100%;
+        min-height: 100dvh;
+        border-width: 0 1px;
+        box-shadow: none;
+    }
+
+    .signup-step-form {
+        display: block;
+    }
+
+    .signup-step-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        padding: 12px 24px calc(18px + env(safe-area-inset-bottom));
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 28%);
     }
 
     .persona-step {

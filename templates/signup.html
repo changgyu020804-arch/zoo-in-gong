@@ -148,7 +148,9 @@
                 </div>
             </section>
 
-            {% for persona_group in persona_questions | batch(4, none) %}
+            {% set persona_questions_per_step = 2 %}
+            {% set persona_step_count = ((persona_questions | length) + persona_questions_per_step - 1) // persona_questions_per_step %}
+            {% for persona_group in persona_questions | batch(persona_questions_per_step, none) %}
             <section class="signup-step persona-step" data-step="{{ loop.index + 6 }}">
                 <p class="step-label">멍BTI {{ loop.index }}</p>
                 <h1>주인공 페르소나:</h1>
@@ -178,7 +180,7 @@
             </section>
             {% endfor %}
 
-            <section class="signup-step" data-step="10">
+            <section class="signup-step" data-step="{{ persona_step_count + 7 }}">
                 <p class="step-label">마지막 발도장</p>
                 <h1>주인공 메모:</h1>
                 <label class="field-line centered-field">
@@ -188,6 +190,7 @@
             </section>
 
             <footer class="signup-step-footer">
+                <p class="step-validation-message" id="stepValidationMessage" aria-live="polite" hidden></p>
                 <button type="button" class="primary-button full-width" id="nextStepButton">다음으로 멍!</button>
                 <button type="submit" class="primary-button full-width is-hidden" id="submitSignupButton">입장 완료</button>
                 <p class="step-count"><span id="currentStep">1</span>/<span id="totalStep">10</span></p>
@@ -203,6 +206,7 @@
         const submitButton = document.getElementById("submitSignupButton");
         const currentStepLabel = document.getElementById("currentStep");
         const totalStepLabel = document.getElementById("totalStep");
+        const validationMessage = document.getElementById("stepValidationMessage");
         const meter = document.querySelector(".step-meter span");
         const speciesOtherRadio = document.getElementById("petSpeciesOtherRadio");
         const speciesOtherInput = document.getElementById("petSpeciesOtherInput");
@@ -228,7 +232,43 @@
             return Array.from(step.querySelectorAll("input, select, textarea"));
         }
 
+        function clearStepErrors(step = steps[currentStep]) {
+            step?.querySelectorAll(".needs-answer").forEach((node) => {
+                node.classList.remove("needs-answer");
+            });
+            if (validationMessage) {
+                validationMessage.hidden = true;
+                validationMessage.textContent = "";
+            }
+        }
+
+        function showStepError(message, target) {
+            if (validationMessage) {
+                validationMessage.textContent = message;
+                validationMessage.hidden = false;
+            }
+            const focusTarget = target?.closest(".persona-mini-card, .field-line, fieldset") || target;
+            focusTarget?.classList.add("needs-answer");
+            focusTarget?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        function validateRadioGroups(step) {
+            const groups = new Map();
+            step.querySelectorAll('input[type="radio"][required]').forEach((input) => {
+                if (!groups.has(input.name)) groups.set(input.name, []);
+                groups.get(input.name).push(input);
+            });
+            for (const inputs of groups.values()) {
+                if (!inputs.some((input) => input.checked)) {
+                    showStepError("아직 안 고른 질문이 있어요. 표시된 질문을 골라주세요.", inputs[0]);
+                    return false;
+                }
+            }
+            return true;
+        }
+
         function setStep(index) {
+            clearStepErrors();
             currentStep = Math.max(0, Math.min(index, steps.length - 1));
             steps.forEach((step, stepIndex) => {
                 step.classList.toggle("is-active", stepIndex === currentStep);
@@ -238,6 +278,7 @@
             submitButton.classList.toggle("is-hidden", currentStep !== steps.length - 1);
             currentStepLabel.textContent = currentStep + 1;
             meter.style.width = `${((currentStep + 1) / steps.length) * 100}%`;
+            window.scrollTo({ top: 0, behavior: "smooth" });
         }
 
         function setStatus(node, message, state = "") {
@@ -298,6 +339,7 @@
         }
 
         async function validateCurrentStep() {
+            clearStepErrors();
             if (currentStep === 0) {
                 syncPasswordStatus();
                 const available = usernameAvailable || await checkUsernameAvailability();
@@ -307,7 +349,15 @@
                 }
             }
             const fields = getStepFields(steps[currentStep]).filter((field) => !field.disabled);
-            return fields.every((field) => field.reportValidity());
+            if (!validateRadioGroups(steps[currentStep])) return false;
+            const fieldsToReport = fields.filter((field) => field.type !== "radio");
+            for (const field of fieldsToReport) {
+                if (!field.reportValidity()) {
+                    showStepError("입력이 필요한 칸을 확인해 주세요.", field);
+                    return false;
+                }
+            }
+            return true;
         }
 
         function syncSpeciesOtherInput() {
@@ -327,6 +377,16 @@
 
         backButton.addEventListener("click", () => {
             setStep(currentStep - 1);
+        });
+
+        form.addEventListener("change", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
+            target.closest(".needs-answer")?.classList.remove("needs-answer");
+            if (validationMessage) {
+                validationMessage.hidden = true;
+                validationMessage.textContent = "";
+            }
         });
 
         steps.forEach((step, stepIndex) => {
