@@ -2856,6 +2856,58 @@
         });
     }
 
+    function compactSearchText(text, maxLength = 16) {
+        const value = normalizeAiText(text || "")
+            .replace(/\s+/g, " ")
+            .replace(/[.。]+$/g, "")
+            .trim();
+        if (value.length <= maxLength) return value;
+
+        const cut = value.slice(0, maxLength + 1);
+        const separatorIndex = Math.max(
+            cut.lastIndexOf(" · "),
+            cut.lastIndexOf(" 쨌 "),
+            cut.lastIndexOf(", "),
+            cut.lastIndexOf(" ")
+        );
+        if (separatorIndex >= 6) return cut.slice(0, separatorIndex).trim();
+        return value.slice(0, maxLength).trim();
+    }
+
+    function compactMatchReason(reason) {
+        const value = normalizeAiText(reason || "").replace(/\s+/g, " ").trim();
+        const exactMatch = value.match(/핵심 성향\s*(\d+)개/);
+        if (exactMatch) return `${exactMatch[1]}개 성향 같아요`;
+        if (value.includes("활동량") && value.includes("비슷")) return "활동량 비슷";
+        if (value.includes("견종") && value.includes("같")) return "견종 같아요";
+        if (value.includes("장소") && value.includes("비슷")) return "장소 비슷";
+        if (value.includes("불편") || value.includes("싫어")) return "싫은 것 비슷";
+        if (value.includes("같이 좋아")) {
+            return value
+                .replace("을 같이 좋아해요", " 좋아함")
+                .replace("를 같이 좋아해요", " 좋아함");
+        }
+        return compactSearchText(value, 13);
+    }
+
+    function profileSearchReasonLine(profile) {
+        const reasons = (profile.match_reasons || []).map(compactMatchReason).filter(Boolean);
+        return reasons.slice(0, 2).join(" · ") || `${profile.match_score || 0}% 잘 맞아요`;
+    }
+
+    function profileSearchSummaryLine(profile) {
+        const summary = normalizeAiText(profile.match_summary || "")
+            .replace(/\s+/g, " ")
+            .replace(/조합까지\s*잘\s*맞아요\.?/g, "")
+            .replace(/조합이\s*잘\s*맞아요\.?/g, "")
+            .replace(/성향이라\s*새\s*친구로\s*추천해요\.?/g, "")
+            .replace(/취향도\s*같아요\.?/g, "취향 같음")
+            .trim();
+        const compact = compactSearchText(summary, 16);
+        const reasons = profileSearchReasonLine(profile);
+        return compact && compact !== reasons ? compact : "";
+    }
+
     function renderProfileSearchResults(profiles) {
         const resultsNode = document.getElementById("profile-search-results");
         if (!resultsNode) return;
@@ -2907,6 +2959,8 @@
             const summary = document.createElement("span");
             summary.className = "match-summary";
             summary.textContent = profile.match_summary || "";
+            reasons.textContent = profileSearchReasonLine(profile);
+            summary.textContent = profileSearchSummaryLine(profile);
             copy.append(name, meta, status, stats, reasons, summary, createBadgeRow(profile.badges, "mini"));
 
             const actions = document.createElement("span");
