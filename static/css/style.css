@@ -2654,6 +2654,17 @@ button.grid-post {
     overflow: hidden;
 }
 
+.login-card .brand-large {
+    display: block;
+    line-height: 1.08;
+    margin-bottom: 16px;
+    white-space: normal;
+}
+
+.login-card .auth-kicker {
+    line-height: 1.35;
+}
+
 .auth-kicker,
 .step-label {
     margin: 0 0 10px;
