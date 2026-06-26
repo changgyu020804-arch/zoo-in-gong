@@ -759,6 +759,56 @@
         context.fill();
     }
 
+    function bubbleTextLines(context, text, maxWidth) {
+        const lines = [];
+        let line = "";
+        for (const char of text) {
+            const nextLine = `${line}${char}`;
+            if (context.measureText(nextLine).width <= maxWidth) {
+                line = nextLine;
+            } else {
+                if (line) lines.push(line);
+                line = char;
+            }
+        }
+        if (line) lines.push(line);
+        return lines;
+    }
+
+    function transformedStickerPoint(x, y, scale, rotation, localX, localY) {
+        const dx = (localX - 560) * scale;
+        const dy = (localY - 150) * scale;
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+        return {
+            x: x + dx * cos - dy * sin,
+            y: y + dx * sin + dy * cos,
+        };
+    }
+
+    function drawFixedSpeechBubbleText(context, x, y, scale, rotation, assets = {}) {
+        const center = transformedStickerPoint(x, y, scale, rotation, 552, 159);
+        const bubbleTextSize = Math.max(18, Math.min(48, Number(assets.bubbleTextSize) || 28)) * scale;
+        const bubbleLineHeight = bubbleTextSize * 1.22;
+        const maxWidth = 216 * scale;
+        context.save();
+        context.fillStyle = "#2d241e";
+        context.font = `900 ${bubbleTextSize}px Jua, Pretendard, sans-serif`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        const bubbleText = String(assets.bubbleText || "").trim() || "여기에 입력";
+        const lines = bubbleTextLines(context, bubbleText, maxWidth);
+        const outputLines = lines.slice(0, 3);
+        if (lines.length > 3) {
+            outputLines[2] = fitCanvasText(context, outputLines[2], maxWidth - 10 * scale);
+        }
+        const startY = center.y - ((outputLines.length - 1) * bubbleLineHeight) / 2;
+        outputLines.forEach((lineText, index) => {
+            context.fillText(lineText, center.x, startY + index * bubbleLineHeight);
+        });
+        context.restore();
+    }
+
     function studioDrawSticker(context, type, x = 560, y = 150, scale = 1, rotation = 0, assets = {}) {
         context.save();
         context.translate(x, y);
@@ -795,6 +845,7 @@
                 context.stroke();
             }
 
+            if (false) {
             context.fillStyle = "#2d241e";
             const bubbleTextSize = Math.max(18, Math.min(48, Number(assets.bubbleTextSize) || 28));
             const bubbleLineHeight = bubbleTextSize * 1.22;
@@ -823,6 +874,7 @@
                 context.fillText(lineText, 552, startY + index * bubbleLineHeight);
             });
             context.textBaseline = "alphabetic";
+            }
         } else if (type === "crown") {
             context.fillStyle = "#f5bf4f";
             context.strokeStyle = "#7a4f18";
@@ -1108,6 +1160,9 @@
             context.stroke();
         }
         context.restore();
+        if (type === "speechbubble") {
+            drawFixedSpeechBubbleText(context, x, y, scale, rotation, assets);
+        }
     }
 
     function initStudioMaker() {
