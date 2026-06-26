@@ -3117,11 +3117,10 @@ button.grid-post {
 }
 
 .ranking-item {
-    display: flex;
-    justify-content: space-between;
+    display: block;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+    min-width: 0;
+    padding: 16px;
     border-radius: 18px;
     background: rgba(255, 248, 240, 0.86);
 }
@@ -3133,9 +3132,10 @@ button.grid-post {
 }
 
 .ranking-left {
-    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-columns: 34px 54px minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    min-width: 0;
 }
 
 .ranking-badge {
@@ -3175,7 +3175,44 @@ button.grid-post {
 }
 
 .ranking-copy {
-    gap: 4px;
+    min-width: 0;
+    gap: 5px;
+}
+
+.ranking-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.ranking-title-row .profile-name-link {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ranking-like-chip {
+    flex: 0 0 auto;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.68);
+    color: #6d5d51;
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.ranking-copy small {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.35;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 .ranking-copy small,

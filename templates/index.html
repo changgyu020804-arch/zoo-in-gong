@@ -432,13 +432,12 @@
                                 {% endif %}
                             </a>
                             <div class="ranking-copy">
-                                <a class="profile-name-link" href="{{ url_for('public_profile', target_username=item.username) }}"><strong>{{ item.pet_name }}</strong></a>
+                                <div class="ranking-title-row">
+                                    <a class="profile-name-link" href="{{ url_for('public_profile', target_username=item.username) }}"><strong>{{ item.pet_name }}</strong></a>
+                                    <span class="ranking-like-chip">{{ item.total_likes }} likes</span>
+                                </div>
                                 <small>{{ item.persona }}</small>
                             </div>
-                        </div>
-                        <div class="ranking-right">
-                            <strong>{{ item.total_likes }}</strong>
-                            <small>likes</small>
                         </div>
                     </div>
                     {% endfor %}
