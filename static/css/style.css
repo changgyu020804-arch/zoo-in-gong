@@ -3031,6 +3031,9 @@ button.grid-post {
     font-weight: 800;
     line-height: 1.2;
     text-align: center;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    text-wrap: balance;
 }
 
 .persona-choice input:checked + span {
@@ -4413,9 +4416,10 @@ body {
     }
 
     .persona-choice span {
-        min-height: 42px;
-        padding: 7px;
-        font-size: 0.82rem;
+        min-height: 46px;
+        padding: 8px 10px;
+        font-size: 0.76rem;
+        line-height: 1.28;
     }
 
     .signup-step[data-step="0"] h1 {
@@ -4437,6 +4441,19 @@ body {
     .signup-avatar-preview {
         width: 96px;
         height: 96px;
+    }
+}
+
+@media (max-width: 430px) {
+    .persona-mini-options {
+        grid-template-columns: 1fr;
+    }
+
+    .persona-choice span {
+        min-height: 42px;
+        padding: 8px 14px;
+        font-size: 0.88rem;
+        line-height: 1.24;
     }
 }
 
