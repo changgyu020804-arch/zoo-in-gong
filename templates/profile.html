@@ -212,13 +212,8 @@
         </aside>
     </div>
 
-    <nav class="mobile-nav">
-        <a class="mobile-nav-button" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i></a>
-        <button class="mobile-nav-button" data-nav-action="search"><i class="fa-solid fa-magnifying-glass"></i></button>
-        <button class="mobile-nav-button" data-nav-action="messages"><i class="fa-regular fa-paper-plane"></i></button>
-        <button class="mobile-nav-button" data-nav-action="alerts"><i class="fa-regular fa-heart"></i></button>
-        <a class="mobile-nav-button is-active" href="{{ url_for('profile') }}"><i class="fa-regular fa-circle-user"></i></a>
-    </nav>
+    {% set mobile_nav_active = 'profile' %}
+    {% include 'partials/mobile_nav.html' %}
 
     <div class="overlay-panel" id="search-panel" aria-hidden="true">
         <div class="panel-dialog compact-dialog">
@@ -472,7 +467,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=studio-bubble-text-20260626a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=mobile-nav-unified-20260626a"></script>
 </body>
 </html>
 

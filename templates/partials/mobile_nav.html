@@ -1,0 +1,25 @@
+<nav class="mobile-nav">
+    {% set active_page = mobile_nav_active if mobile_nav_active is defined else '' %}
+    {% set profile_url = mobile_nav_profile_href if mobile_nav_profile_href is defined else url_for('profile') %}
+    <button class="mobile-nav-button {% if active_page == 'home' %}is-active{% endif %}" data-nav-action="home" aria-label="Home">
+        <i class="fa-solid fa-house"></i>
+    </button>
+    <button class="mobile-nav-button" data-nav-action="search" aria-label="Search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+    </button>
+    <button class="mobile-nav-button" data-nav-action="upload" aria-label="New post">
+        <i class="fa-regular fa-square-plus"></i>
+    </button>
+    <a class="mobile-nav-button {% if active_page == 'studio' %}is-active{% endif %}" href="{{ url_for('studio') }}" aria-label="Studio">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+    </a>
+    <button class="mobile-nav-button" data-nav-action="messages" aria-label="Messages">
+        <i class="fa-regular fa-paper-plane"></i>
+    </button>
+    <button class="mobile-nav-button" data-nav-action="alerts" aria-label="Alerts">
+        <i class="fa-regular fa-heart"></i>
+    </button>
+    <a class="mobile-nav-button {% if active_page == 'profile' %}is-active{% endif %}" href="{{ profile_url }}" aria-label="Profile">
+        <i class="fa-regular fa-circle-user"></i>
+    </a>
+</nav>

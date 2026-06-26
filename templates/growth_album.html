@@ -99,13 +99,12 @@
         </aside>
     </div>
 
-    <nav class="mobile-nav album-mobile-nav">
-        <a class="mobile-nav-button" href="{{ url_for('index') }}" aria-label="홈"><i class="fa-solid fa-house"></i></a>
-        <a class="mobile-nav-button is-active" href="{{ url_for('growth_album', target_username=user.username) }}" aria-label="성장 앨범"><i class="fa-solid fa-images"></i></a>
-        {% if can_edit %}
-        <a class="mobile-nav-button" href="{{ url_for('index') }}#composer-section" aria-label="새 게시물"><i class="fa-regular fa-square-plus"></i></a>
-        {% endif %}
-        <a class="mobile-nav-button" href="{{ url_for('public_profile', target_username=user.username) }}" aria-label="프로필"><i class="fa-regular fa-circle-user"></i></a>
-    </nav>
+    {% set mobile_nav_active = 'profile' %}
+    {% set mobile_nav_profile_href = url_for('public_profile', target_username=user.username) %}
+    {% include 'partials/mobile_nav.html' %}
+    <script>
+        window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=mobile-nav-unified-20260626a"></script>
 </body>
 </html>

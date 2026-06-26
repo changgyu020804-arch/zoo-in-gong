@@ -1795,7 +1795,7 @@
 
         if (action === "upload") {
             if (page !== "home") {
-                window.location.href = "/";
+                window.location.href = "/#composer-section";
                 return;
             }
             const section = document.getElementById("composer-section");
@@ -1806,6 +1806,10 @@
         }
 
         if (action === "search") {
+            if (!panels.search) {
+                window.location.href = "/";
+                return;
+            }
             openPanel("search");
             const searchInput = document.getElementById("search-input");
             if (searchInput) window.setTimeout(() => searchInput.focus(), 60);
@@ -1815,6 +1819,10 @@
         }
 
         if (action === "alerts") {
+            if (!panels.alerts) {
+                window.location.href = "/";
+                return;
+            }
             openPanel("alerts");
             loadNotifications({ markRead: true });
             activateNav("alerts");
@@ -1822,6 +1830,10 @@
         }
 
         if (action === "messages") {
+            if (!panels.messages) {
+                window.location.href = "/";
+                return;
+            }
             openPanel("messages");
             renderThreads();
             loadThreads(chatUsername, false, true);

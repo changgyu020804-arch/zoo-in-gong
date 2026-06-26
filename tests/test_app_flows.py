@@ -337,6 +337,33 @@ def test_growth_album_includes_existing_posts_and_growth_metadata(client):
     assert "평범한 하루" in html
 
 
+def test_mobile_nav_is_consistent_across_main_pages(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    expected_bits = [
+        'data-nav-action="home"',
+        'data-nav-action="search"',
+        'data-nav-action="upload"',
+        'fa-wand-magic-sparkles',
+        'data-nav-action="messages"',
+        'data-nav-action="alerts"',
+        'fa-circle-user',
+    ]
+
+    for path in ["/", "/profile", "/friends", "/studio", "/profile/nari/album"]:
+        response = client.get(path)
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        start = html.index('<nav class="mobile-nav">')
+        end = html.index("</nav>", start)
+        nav = html[start:end]
+
+        assert nav.count('class="mobile-nav-button') == 7
+        for expected in expected_bits:
+            assert expected in nav
+
+
 def test_like_comment_and_profile_update_flow(client):
     create_user(client, "owner", "오너")
     create_user(client, "friend", "친구")

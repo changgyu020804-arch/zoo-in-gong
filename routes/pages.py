@@ -88,8 +88,8 @@ def register_page_routes(app):
         if not target:
             return redirect(url_for("index"))
 
+        viewer_profile, _viewer_stats, _notifications, bootstrap = build_page_context("growth-album", viewer_username)
         album_profile = get_user_profile(target_username)
-        viewer_profile = get_user_profile(viewer_username)
         stats = get_profile_stats(target_username)
         attach_profile_summary(album_profile, stats)
         album = get_growth_album(target_username, viewer_username=viewer_username)
@@ -101,6 +101,7 @@ def register_page_routes(app):
             album=album,
             stats=stats,
             can_edit=target_username == viewer_username,
+            bootstrap=bootstrap,
         )
 
     @app.route("/friends")
