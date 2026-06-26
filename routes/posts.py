@@ -3,7 +3,8 @@ from datetime import datetime
 import gc
 import logging
 import os
-from threading import BoundedSemaphore, Thread
+from queue import Full, Queue
+from threading import Lock, Thread
 import time
 from zoneinfo import ZoneInfo
 
@@ -28,7 +29,10 @@ logger = logging.getLogger(__name__)
 PENDING_CAPTION_TEXT = "AI 캡션을 만들고 있어요..."
 PENDING_CAPTION_HTML = escape(PENDING_CAPTION_TEXT)
 CAPTION_WORKER_CONCURRENCY = max(1, int(os.environ.get("CAPTION_WORKER_CONCURRENCY", "1")))
-_caption_worker_semaphore = BoundedSemaphore(CAPTION_WORKER_CONCURRENCY)
+CAPTION_QUEUE_MAXSIZE = max(1, int(os.environ.get("CAPTION_QUEUE_MAXSIZE", "50")))
+_caption_queue = Queue(maxsize=CAPTION_QUEUE_MAXSIZE)
+_caption_worker_lock = Lock()
+_caption_workers_started = False
 GROWTH_MILESTONES = {
     "",
     "첫 산책",
@@ -88,8 +92,7 @@ def finish_pending_caption(post_id, filepath, profile, activity_text):
     started_at = time.perf_counter()
     started_memory_mb = get_process_memory_mb()
     try:
-        with _caption_worker_semaphore:
-            analysis, caption = generate_caption_without_image_judgement(filepath, profile, activity_text)
+        analysis, caption = generate_caption_without_image_judgement(filepath, profile, activity_text)
         caption_status = "ready"
         if not caption:
             caption = escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
@@ -127,17 +130,66 @@ def finish_pending_caption(post_id, filepath, profile, activity_text):
     gc.collect()
 
 
+def _caption_worker_loop(worker_id):
+    logger.info("caption_queue_worker_started worker_id=%s maxsize=%s", worker_id, CAPTION_QUEUE_MAXSIZE)
+    while True:
+        post_id, filepath, profile, activity_text = _caption_queue.get()
+        try:
+            logger.info(
+                "caption_queue_dequeued worker_id=%s post_id=%s queue_size=%s",
+                worker_id,
+                post_id,
+                _caption_queue.qsize(),
+            )
+            finish_pending_caption(post_id, filepath, profile, activity_text)
+        finally:
+            _caption_queue.task_done()
+
+
+def ensure_caption_workers_started():
+    global _caption_workers_started
+    if _caption_workers_started:
+        return
+    with _caption_worker_lock:
+        if _caption_workers_started:
+            return
+        for worker_id in range(CAPTION_WORKER_CONCURRENCY):
+            worker = Thread(
+                target=_caption_worker_loop,
+                args=(worker_id + 1,),
+                daemon=True,
+                name=f"caption-worker-{worker_id + 1}",
+            )
+            worker.start()
+        _caption_workers_started = True
+
+
+def mark_caption_fallback(post_id, profile, activity_text, reason):
+    caption = escape(make_fallback_caption(profile, activity_text)).replace("\n", "<br>")
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            UPDATE posts
+            SET caption = ?, caption_status = 'fallback'
+            WHERE id = ? AND caption_status = 'pending'
+            """,
+            (caption, post_id),
+        )
+        conn.commit()
+    logger.warning("caption_queue_fallback post_id=%s reason=%s", post_id, reason)
+
+
 def start_pending_caption(app, post_id, filepath, profile, activity_text):
     if app.config.get("TESTING"):
         finish_pending_caption(post_id, filepath, profile, activity_text)
         return
 
-    worker = Thread(
-        target=finish_pending_caption,
-        args=(post_id, filepath, profile, activity_text),
-        daemon=True,
-    )
-    worker.start()
+    ensure_caption_workers_started()
+    try:
+        _caption_queue.put_nowait((post_id, filepath, profile, activity_text))
+        logger.info("caption_queue_enqueued post_id=%s queue_size=%s", post_id, _caption_queue.qsize())
+    except Full:
+        mark_caption_fallback(post_id, profile, activity_text, "queue_full")
 
 
 def register_post_routes(app):

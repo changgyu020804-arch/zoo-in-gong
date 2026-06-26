@@ -1,5 +1,7 @@
 import io
 import base64
+from pathlib import Path
+from queue import Queue
 from types import SimpleNamespace
 
 import pytest
@@ -284,6 +286,63 @@ def test_upload_adds_optional_growth_record_without_blocking_normal_posts(client
         "growth_milestone": "첫 산책",
         "pet_age_at_post": 3,
     }
+
+
+def test_store_uploaded_file_compresses_large_images(tmp_path, monkeypatch):
+    from PIL import Image
+    import upload_utils
+
+    upload_folder = tmp_path / "uploads"
+    upload_folder.mkdir()
+    monkeypatch.setattr(upload_utils, "UPLOAD_FOLDER", upload_folder)
+    monkeypatch.setattr(upload_utils, "COMPRESS_UPLOAD_IMAGES", True)
+
+    source = io.BytesIO()
+    Image.new("RGB", (2400, 1800), (220, 120, 80)).save(source, format="JPEG", quality=95)
+    source.seek(0)
+    file = SimpleNamespace(filename="huge-dog.jpg", save=lambda path: Path(path).write_bytes(source.getvalue()))
+
+    filepath, image_url = upload_utils.store_uploaded_file(file)
+
+    assert filepath.suffix == ".jpg"
+    assert image_url.endswith(".jpg")
+    with Image.open(filepath) as saved:
+        assert max(saved.size) <= upload_utils.UPLOAD_IMAGE_MAX_DIMENSION
+
+
+def test_caption_queue_full_uses_fallback_without_blocking(client, monkeypatch):
+    import routes.posts as post_routes
+
+    create_user(client, "nari", "?섎━")
+    with client.db.get_db_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO posts (image_url, caption, caption_status, username, activity_text)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            ("/uploads/dog.jpg", post_routes.PENDING_CAPTION_HTML, "pending", "nari", "怨듭썝 ?곗콉"),
+        )
+        post_id = cursor.lastrowid
+        conn.commit()
+
+    full_queue = Queue(maxsize=1)
+    full_queue.put_nowait((0, "busy.jpg", {}, "busy"))
+    monkeypatch.setattr(post_routes, "_caption_queue", full_queue)
+    monkeypatch.setattr(post_routes, "_caption_workers_started", True)
+
+    post_routes.start_pending_caption(
+        SimpleNamespace(config={"TESTING": False}),
+        post_id,
+        "dog.jpg",
+        {"pet_name": "Nari", "persona": "leader", "personality": "active"},
+        "park walk",
+    )
+
+    with client.db.get_db_connection() as conn:
+        post = conn.execute("SELECT caption_status, caption FROM posts WHERE id = ?", (post_id,)).fetchone()
+
+    assert post["caption_status"] == "fallback"
+    assert post["caption"]
 
 
 def test_growth_album_includes_existing_posts_and_growth_metadata(client):
