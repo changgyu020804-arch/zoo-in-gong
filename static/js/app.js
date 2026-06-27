@@ -2955,10 +2955,8 @@
             stats.textContent = `${profile.posts_count || 0} 게시물 · ${profile.total_likes || 0} 좋아요 · ${profile.last_post_label || "활동 없음"}`;
             const reasons = document.createElement("span");
             reasons.className = "match-reasons";
-            reasons.textContent = (profile.match_reasons || []).join(" · ");
             const summary = document.createElement("span");
             summary.className = "match-summary";
-            summary.textContent = profile.match_summary || "";
             reasons.textContent = profileSearchReasonLine(profile);
             summary.textContent = profileSearchSummaryLine(profile);
             copy.append(name, meta, status, stats, reasons, summary, createBadgeRow(profile.badges, "mini"));

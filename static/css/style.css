@@ -4212,10 +4212,6 @@ body {
     color: var(--muted);
 }
 
-.album-mobile-nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 @media (max-width: 860px) {
     .growth-record-grid,
     .album-grid {
@@ -4528,6 +4524,124 @@ body {
     .signup-avatar-preview {
         width: 96px;
         height: 96px;
+    }
+
+    .content-column,
+    .profile-hero,
+    .panel-card,
+    .friend-grid,
+    .friend-card,
+    .friend-card-copy {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .content-column {
+        gap: 16px;
+    }
+
+    .friends-hero,
+    .panel-card {
+        padding: 18px;
+    }
+
+    .friend-card {
+        grid-template-columns: 68px minmax(0, 1fr);
+        align-items: start;
+        gap: 12px;
+        padding: 14px;
+        overflow: hidden;
+    }
+
+    .friend-card > .avatar-large {
+        width: 68px;
+        height: 68px;
+    }
+
+    .friend-card-copy > span,
+    .friend-card-copy > p {
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+    }
+
+    .friend-mini-stats {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+    }
+
+    .friend-card-actions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 8px;
+    }
+
+    .friend-card-actions .ghost-button,
+    .friend-card-actions .follow-button {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+    }
+
+    .profile-search-card {
+        grid-template-columns: 48px minmax(0, 1fr);
+        align-items: start;
+        gap: 10px 12px;
+    }
+
+    .profile-search-card > .avatar-small {
+        width: 48px;
+        height: 48px;
+    }
+
+    .profile-search-copy span {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+    }
+
+    .profile-search-copy .match-reasons,
+    .profile-search-copy .match-summary {
+        text-overflow: clip;
+    }
+
+    .profile-search-actions {
+        grid-column: 2;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+
+    .profile-search-actions .match-chip {
+        min-height: 32px;
+    }
+
+    .profile-hero-copy {
+        min-width: 0;
+    }
+
+    .profile-hero .bio-line,
+    .profile-hero .persona-note {
+        padding: 12px 14px;
+        border-radius: 14px;
+        line-height: 1.55;
+    }
+
+    .profile-hero .bio-line {
+        background: rgba(255, 255, 255, 0.66);
+        border: 1px solid rgba(232, 211, 191, 0.72);
+    }
+
+    .profile-hero .persona-note {
+        margin-top: 8px;
+        background: rgba(223, 241, 173, 0.34);
+        color: #58612f;
     }
 }
 
