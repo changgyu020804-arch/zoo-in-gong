@@ -288,7 +288,7 @@
                     </div>
 
                     <button type="button" class="post-image-wrap js-open-post-detail" data-post-id="{{ post.id }}" aria-label="게시물 상세 보기">
-                        <img class="post-image" src="{{ post.image_url }}" alt="{{ post.pet_name }} 사진">
+                        <img class="post-image" src="{{ post.image_url }}" alt="{{ post.pet_name }} 사진" loading="lazy" decoding="async">
                     </button>
 
                     <div class="post-actions dog-social-actions">
@@ -354,6 +354,18 @@
                 </article>
                 {% endfor %}
             </section>
+
+            <div
+                class="feed-pagination"
+                id="feed-pagination"
+                data-has-more="{{ 'true' if feed_has_more else 'false' }}"
+                data-before-created-at="{{ feed_next_cursor.created_at if feed_next_cursor else '' }}"
+                data-before-id="{{ feed_next_cursor.id if feed_next_cursor else '' }}"
+                {% if not feed_has_more %}hidden{% endif %}
+            >
+                <button type="button" class="ghost-button" id="feed-load-more">게시물 더 보기</button>
+                <span class="feed-pagination-status" aria-live="polite"></span>
+            </div>
 
             <section class="explore-section" id="explore-section">
                 <div class="section-head">
@@ -690,7 +702,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=profile-search-compact-20260626a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=feed-pagination-20260628a"></script>
 </body>
 </html>
 

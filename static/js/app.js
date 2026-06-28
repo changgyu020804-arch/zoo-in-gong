@@ -10,6 +10,7 @@
     let messageToneRequestId = 0;
     let lastMessageToneBody = "";
     let notificationRefreshTimer = null;
+    const NOTIFICATION_REFRESH_MS = 15000;
     const pendingCaptionPolls = new Map();
     let unreadNotificationCount = bootstrap.notification_unread_count || 0;
     let unreadMessageCount = bootstrap.message_unread_count || 0;
@@ -281,9 +282,9 @@
         return link;
     }
 
-    function buildNewPostCard(post) {
+    function buildNewPostCard(post, highlight = true) {
         const article = document.createElement("article");
-        article.className = "post-card dog-social-card js-searchable post-highlight";
+        article.className = `post-card dog-social-card js-searchable${highlight ? " post-highlight" : ""}`;
         article.id = `post-${post.id}`;
         article.dataset.search = post.search_text || "";
         article.dataset.captionStatus = post.caption_status || "ready";
@@ -324,6 +325,17 @@
             remove.setAttribute("aria-label", "게시물 삭제");
             remove.appendChild(createIcon("fa-regular fa-trash-can"));
             tools.append(edit, remove);
+        } else {
+            const follow = document.createElement("button");
+            follow.type = "button";
+            follow.className = `follow-button js-follow-button ${post.is_following ? "is-following" : ""}`;
+            follow.dataset.username = post.username || "";
+            follow.dataset.following = post.is_following ? "true" : "false";
+            const followLabel = document.createElement("span");
+            followLabel.className = "follow-label";
+            followLabel.textContent = post.is_following ? "팔로잉" : "팔로우";
+            follow.appendChild(followLabel);
+            tools.appendChild(follow);
         }
         const species = document.createElement("span");
         species.className = "tag-pill";
@@ -340,6 +352,8 @@
         image.className = "post-image";
         image.src = post.image_url || "";
         image.alt = `${post.pet_name || "강아지"} 사진`;
+        image.loading = "lazy";
+        image.decoding = "async";
         imageButton.appendChild(image);
 
         const actions = document.createElement("div");
@@ -450,7 +464,7 @@
         commentsBox.append(list, commentForm);
 
         article.append(header, imageButton, actions, copy, commentsBox);
-        window.setTimeout(() => article.classList.remove("post-highlight"), 2400);
+        if (highlight) window.setTimeout(() => article.classList.remove("post-highlight"), 2400);
         return article;
     }
 
@@ -459,6 +473,65 @@
         if (!feed || !post) return;
         feed.prepend(buildNewPostCard(post));
         if (post.caption_pending) pollPendingCaption(post.id);
+    }
+
+    async function loadNextFeedPage(pagination) {
+        if (!pagination || pagination.dataset.loading === "true" || pagination.dataset.hasMore !== "true") return;
+
+        const feed = document.querySelector(".feed-list");
+        const button = pagination.querySelector("#feed-load-more");
+        const status = pagination.querySelector(".feed-pagination-status");
+        if (!feed) return;
+
+        pagination.dataset.loading = "true";
+        if (button) button.disabled = true;
+        if (status) status.textContent = "게시물을 불러오는 중이에요...";
+
+        const params = new URLSearchParams({ limit: "20" });
+        if (pagination.dataset.beforeCreatedAt) {
+            params.set("before_created_at", pagination.dataset.beforeCreatedAt);
+        }
+        if (pagination.dataset.beforeId) params.set("before_id", pagination.dataset.beforeId);
+
+        try {
+            const response = await fetch(`/api/feed?${params.toString()}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "feed request failed");
+
+            (data.posts || []).forEach((post) => {
+                if (document.getElementById(`post-${post.id}`)) return;
+                feed.appendChild(buildNewPostCard(post, false));
+                if (post.caption_pending) pollPendingCaption(post.id);
+            });
+
+            pagination.dataset.hasMore = data.has_more ? "true" : "false";
+            pagination.dataset.beforeCreatedAt = data.next_cursor?.created_at || "";
+            pagination.dataset.beforeId = data.next_cursor?.id || "";
+            pagination.hidden = !data.has_more;
+            if (status) status.textContent = data.has_more ? "" : "모든 게시물을 불러왔어요.";
+        } catch (error) {
+            if (status) status.textContent = "게시물을 불러오지 못했어요.";
+        } finally {
+            pagination.dataset.loading = "false";
+            if (button) button.disabled = false;
+        }
+    }
+
+    function initFeedPagination() {
+        const pagination = document.getElementById("feed-pagination");
+        const button = document.getElementById("feed-load-more");
+        if (!pagination || pagination.dataset.hasMore !== "true") return;
+
+        if (button) button.addEventListener("click", () => loadNextFeedPage(pagination));
+        if (!("IntersectionObserver" in window)) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) loadNextFeedPage(pagination);
+            },
+            { rootMargin: "600px 0px" },
+        );
+        observer.observe(pagination);
     }
 
     function resetUploadForm() {
@@ -3642,10 +3715,32 @@
         renderNotifications();
         updateNotificationBadges();
         updateMessageBadges();
-        if (notificationRefreshTimer) window.clearInterval(notificationRefreshTimer);
-        notificationRefreshTimer = window.setInterval(() => {
-            loadNotifications({ sinceId: lastNotificationId, silent: true });
-        }, 5000);
+
+        const stopRefresh = () => {
+            if (!notificationRefreshTimer) return;
+            window.clearTimeout(notificationRefreshTimer);
+            notificationRefreshTimer = null;
+        };
+        const scheduleRefresh = () => {
+            stopRefresh();
+            if (document.hidden) return;
+            notificationRefreshTimer = window.setTimeout(async () => {
+                notificationRefreshTimer = null;
+                if (!document.hidden) {
+                    await loadNotifications({ sinceId: lastNotificationId, silent: true });
+                }
+                scheduleRefresh();
+            }, NOTIFICATION_REFRESH_MS);
+        };
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopRefresh();
+                return;
+            }
+            loadNotifications({ sinceId: lastNotificationId, silent: true }).finally(scheduleRefresh);
+        });
+        scheduleRefresh();
     }
 
     initNav();
@@ -3658,6 +3753,7 @@
     initMessages();
     initDeepLinks();
     initDrawerRefresh();
+    initFeedPagination();
     initPendingCaptionPolling();
 })();
 

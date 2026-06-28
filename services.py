@@ -1098,7 +1098,14 @@ def fetch_comments_by_post(conn, post_ids, viewer_username=None):
     return comments_by_post
 
 
-def get_posts(username=None, viewer_username=None, post_ids=None):
+def get_posts(
+    username=None,
+    viewer_username=None,
+    post_ids=None,
+    limit=None,
+    before_created_at=None,
+    before_id=None,
+):
     if post_ids is not None:
         post_ids = list(dict.fromkeys(post_ids))
         if not post_ids:
@@ -1132,9 +1139,15 @@ def get_posts(username=None, viewer_username=None, post_ids=None):
         placeholders = ",".join("?" for _ in post_ids)
         conditions.append(f"p.id IN ({placeholders})")
         params.extend(post_ids)
+    if before_created_at and before_id:
+        conditions.append("(p.created_at < ? OR (p.created_at = ? AND p.id < ?))")
+        params.extend([before_created_at, before_created_at, before_id])
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
     query += " ORDER BY p.created_at DESC, p.id DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(max(1, int(limit)))
 
     with get_db_connection() as conn:
         rows = conn.execute(query, params).fetchall()
@@ -1206,6 +1219,25 @@ def get_posts(username=None, viewer_username=None, post_ids=None):
             ).lower()
             posts.append(post)
     return posts
+
+
+def get_feed_page(viewer_username, limit=20, before_created_at=None, before_id=None):
+    page_size = min(30, max(1, int(limit or 20)))
+    posts = get_posts(
+        viewer_username=viewer_username,
+        limit=page_size + 1,
+        before_created_at=before_created_at,
+        before_id=before_id,
+    )
+    has_more = len(posts) > page_size
+    page_posts = posts[:page_size]
+    last_post = page_posts[-1] if page_posts else None
+    next_cursor = (
+        {"created_at": last_post["created_at"], "id": last_post["id"]}
+        if has_more and last_post
+        else None
+    )
+    return {"posts": page_posts, "has_more": has_more, "next_cursor": next_cursor}
 
 
 def get_growth_album(username, viewer_username=None):

@@ -743,6 +743,79 @@ def test_home_renders_persona_share_card(client):
     assert "data-traits=\"밖이 좋아요" in html
 
 
+def test_home_feed_loads_twenty_posts_per_page_without_duplicates(client):
+    create_user(client, "nari", "나리")
+    with client.db.get_db_connection() as conn:
+        for index in range(45):
+            conn.execute(
+                """
+                INSERT INTO posts (image_url, caption, username, activity_text, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    f"/static/uploads/feed-{index}.jpg",
+                    f"피드 기록 {index}",
+                    "nari",
+                    "산책",
+                    f"2026-06-01 10:{index:02d}:00",
+                ),
+            )
+        conn.commit()
+
+    login_as(client, "nari")
+    home_response = client.get("/")
+    home_html = home_response.get_data(as_text=True)
+
+    assert home_response.status_code == 200
+    assert home_html.count('class="post-card dog-social-card js-searchable"') == 20
+    assert 'id="feed-pagination"' in home_html
+    assert 'data-has-more="true"' in home_html
+
+    first_page = client.get("/api/feed?limit=20").get_json()
+    assert len(first_page["posts"]) == 20
+    assert first_page["has_more"] is True
+    assert first_page["next_cursor"]
+
+    second_page = client.get(
+        "/api/feed",
+        query_string={
+            "limit": 20,
+            "before_created_at": first_page["next_cursor"]["created_at"],
+            "before_id": first_page["next_cursor"]["id"],
+        },
+    ).get_json()
+    first_ids = {post["id"] for post in first_page["posts"]}
+    second_ids = {post["id"] for post in second_page["posts"]}
+
+    assert len(second_page["posts"]) == 20
+    assert first_ids.isdisjoint(second_ids)
+    assert second_page["has_more"] is True
+
+    third_page = client.get(
+        "/api/feed",
+        query_string={
+            "limit": 20,
+            "before_created_at": second_page["next_cursor"]["created_at"],
+            "before_id": second_page["next_cursor"]["id"],
+        },
+    ).get_json()
+    third_ids = {post["id"] for post in third_page["posts"]}
+
+    assert len(third_page["posts"]) == 5
+    assert third_page["has_more"] is False
+    assert third_page["next_cursor"] is None
+    assert first_ids.isdisjoint(third_ids)
+    assert second_ids.isdisjoint(third_ids)
+
+
+def test_notification_refresh_uses_longer_interval_and_visibility_pause():
+    app_js = (Path(__file__).parents[1] / "static" / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "NOTIFICATION_REFRESH_MS = 15000" in app_js
+    assert 'document.addEventListener("visibilitychange"' in app_js
+    assert "if (document.hidden)" in app_js
+
+
 def test_studio_page_renders_canvas_maker(client):
     create_user(client, "nari", "나리")
     login_as(client, "nari")

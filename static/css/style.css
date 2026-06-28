@@ -2431,6 +2431,24 @@ button.grid-post {
     display: none;
 }
 
+.feed-pagination {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    min-height: 54px;
+    padding: 4px 0 14px;
+}
+
+.feed-pagination[hidden] {
+    display: none;
+}
+
+.feed-pagination-status {
+    min-height: 20px;
+    color: var(--muted);
+    font-size: 0.86rem;
+}
+
 .auth-page {
     min-height: 100vh;
     display: grid;

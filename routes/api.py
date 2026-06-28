@@ -8,6 +8,7 @@ from services import (
     build_notifications,
     can_message_user,
     create_notification,
+    get_feed_page,
     get_post,
     get_unread_message_count,
     get_unread_notification_count,
@@ -141,6 +142,24 @@ def register_api_routes(app):
                 "message_unread_count": get_unread_message_count(username),
                 "latest_id": latest_id,
             }
+        )
+
+    @app.route("/api/feed")
+    def api_feed():
+        username, error = login_required_json()
+        if error:
+            return error
+
+        before_created_at = clean_single_line_text(request.args.get("before_created_at", ""), 40)
+        before_id = request.args.get("before_id", type=int)
+        limit = request.args.get("limit", default=20, type=int)
+        return jsonify(
+            get_feed_page(
+                username,
+                limit=limit,
+                before_created_at=before_created_at or None,
+                before_id=before_id,
+            )
         )
 
     @app.route("/api/posts/<int:post_id>")

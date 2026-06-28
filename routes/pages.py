@@ -12,6 +12,7 @@ from services import (
     get_following_profiles,
     get_following_usernames,
     get_friend_suggestions,
+    get_feed_page,
     get_growth_album,
     get_posts,
     get_profile_stats,
@@ -47,10 +48,13 @@ def register_page_routes(app):
             return redirect(url_for("login"))
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
+        feed_page = get_feed_page(username, limit=20)
 
         return render_template(
             "index.html",
-            posts=get_posts(viewer_username=username),
+            posts=feed_page["posts"],
+            feed_has_more=feed_page["has_more"],
+            feed_next_cursor=feed_page["next_cursor"],
             profile=profile,
             stats=stats,
             notifications=notifications,
