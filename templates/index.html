@@ -298,7 +298,7 @@
                         </button>
                         <button type="button" class="dog-action-button js-comment-focus" data-post-id="{{ post.id }}" aria-label="댓글">
                             <i class="fa-regular fa-comment"></i>
-                            <strong id="comment-count-{{ post.id }}">{{ post.comments | length }}</strong>
+                            <strong id="comment-count-{{ post.id }}">{{ post.comment_count }}</strong>
                         </button>
                         <button
                             type="button"
@@ -702,7 +702,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=feed-pagination-20260628a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=lazy-comments-messages-20260628a"></script>
 </body>
 </html>
 

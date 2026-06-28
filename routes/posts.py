@@ -400,8 +400,18 @@ def register_post_routes(app):
                 """,
                 (cursor.lastrowid,),
             ).fetchone()
+            comment_count = conn.execute(
+                "SELECT COUNT(*) AS count FROM comments WHERE post_id = ?",
+                (post_id,),
+            ).fetchone()["count"]
 
-        return jsonify({"success": True, "comment": build_comment_item(comment_row, username)})
+        return jsonify(
+            {
+                "success": True,
+                "comment": build_comment_item(comment_row, username),
+                "comment_count": comment_count,
+            }
+        )
 
     @app.route("/api/comments/<int:comment_id>", methods=["PATCH"])
     def update_comment(comment_id):
@@ -466,8 +476,19 @@ def register_post_routes(app):
 
             conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
             conn.commit()
+            comment_count = conn.execute(
+                "SELECT COUNT(*) AS count FROM comments WHERE post_id = ?",
+                (row["post_id"],),
+            ).fetchone()["count"]
 
-        return jsonify({"success": True, "post_id": row["post_id"], "comment_id": comment_id})
+        return jsonify(
+            {
+                "success": True,
+                "post_id": row["post_id"],
+                "comment_id": comment_id,
+                "comment_count": comment_count,
+            }
+        )
 
     @app.route("/api/comment-suggestion/<int:post_id>", methods=["POST"])
     def comment_suggestion(post_id):

@@ -8,6 +8,7 @@
     let messageRefreshTimer = null;
     let messageToneTimer = null;
     let messageToneRequestId = 0;
+    let conversationRequestId = 0;
     let lastMessageToneBody = "";
     let notificationRefreshTimer = null;
     const NOTIFICATION_REFRESH_MS = 15000;
@@ -95,6 +96,7 @@
         return rawThreads.map((thread) => ({
             ...thread,
             messages: Array.isArray(thread.messages) ? [...thread.messages] : [],
+            messages_loaded: Boolean(thread.messages_loaded || thread.messages?.length),
         }));
     }
 
@@ -377,7 +379,7 @@
         comment.setAttribute("aria-label", "댓글");
         const commentCount = document.createElement("strong");
         commentCount.id = `comment-count-${post.id}`;
-        commentCount.textContent = (post.comments || []).length;
+        commentCount.textContent = post.comment_count ?? (post.comments || []).length;
         comment.append(createIcon("fa-regular fa-comment"), commentCount);
 
         const bookmark = document.createElement("button");
@@ -2111,16 +2113,18 @@
         }
     }
 
-    function syncCommentCount(postId) {
+    function syncCommentCount(postId, explicitCount = null) {
         const countNode = document.getElementById(`comment-count-${postId}`);
         if (!countNode) return;
-        const list = document.getElementById(`comment-list-${postId}`);
-        const count = list
-            ? list.querySelectorAll(".comment-item").length
+        const count = explicitCount !== null
+            ? Number(explicitCount)
             : activeDetailPostId === String(postId) && activeDetailPost
                 ? (activeDetailPost.comments || []).length
                 : Number(countNode.textContent || 0);
         countNode.textContent = String(count);
+        if (activeDetailPostId === String(postId) && activeDetailPost) {
+            activeDetailPost.comment_count = count;
+        }
     }
 
     function syncBookmarkState(postId, bookmarked, bookmarkCount) {
@@ -2184,9 +2188,14 @@
         return item;
     }
 
-    function addCommentToLists(postId, comment) {
+    function addCommentToLists(postId, comment, commentCount = null) {
         const list = document.getElementById(`comment-list-${postId}`);
-        if (list) list.appendChild(renderCommentItem(comment, postId));
+        if (list) {
+            list.appendChild(renderCommentItem(comment, postId));
+            while (list.querySelectorAll(".comment-item").length > 3) {
+                list.querySelector(".comment-item")?.remove();
+            }
+        }
 
         const detailList = activeDetailPostId === String(postId) ? document.getElementById("detail-post-comments") : null;
         if (detailList) detailList.appendChild(renderCommentItem(comment, postId));
@@ -2194,7 +2203,7 @@
         if (activeDetailPostId === String(postId) && activeDetailPost) {
             activeDetailPost.comments = [...(activeDetailPost.comments || []), comment];
         }
-        syncCommentCount(postId);
+        syncCommentCount(postId, commentCount);
     }
 
     function updateCommentInLists(comment) {
@@ -2212,7 +2221,7 @@
         }
     }
 
-    function removeCommentFromLists(commentId, postId) {
+    function removeCommentFromLists(commentId, postId, commentCount = null) {
         document.querySelectorAll(`.comment-item[data-comment-id="${CSS.escape(String(commentId))}"]`).forEach((item) => item.remove());
         if (activeDetailPostId === String(postId) && activeDetailPost) {
             activeDetailPost.comments = (activeDetailPost.comments || []).filter((item) => {
@@ -2220,7 +2229,7 @@
                 return String(current.id) !== String(commentId);
             });
         }
-        syncCommentCount(postId);
+        syncCommentCount(postId, commentCount);
     }
 
     async function likePost(postId) {
@@ -2310,7 +2319,7 @@
                 return;
             }
 
-            addCommentToLists(postId, data.comment);
+            addCommentToLists(postId, data.comment, data.comment_count);
             input.value = "";
         } catch (error) {
             showToast("댓글 등록에 실패했어요.");
@@ -2409,7 +2418,7 @@
                 showToast(data.error || "댓글 삭제에 실패했어요.");
                 return;
             }
-            removeCommentFromLists(data.comment_id, data.post_id);
+            removeCommentFromLists(data.comment_id, data.post_id, data.comment_count);
             showToast("댓글을 삭제했어요.");
         } catch (error) {
             showToast("댓글 삭제에 실패했어요.");
@@ -3182,10 +3191,7 @@
 
     async function loadThreads(preferredUsername = "", silent = false, markRead = false) {
         try {
-            const params = new URLSearchParams();
-            if (markRead) params.set("mark_read", "1");
-            if (preferredUsername) params.set("partner", preferredUsername);
-            const response = await fetch(`/api/messages${params.toString() ? `?${params}` : ""}`);
+            const response = await fetch("/api/messages");
             const data = await response.json();
             if (!response.ok) {
                 if (!silent) showToast(data.error || "메시지를 불러오지 못했어요.");
@@ -3193,14 +3199,56 @@
             }
 
             const currentUsername = preferredUsername || threads[activeThreadIndex]?.username || "";
-            threads = normalizeThreads(data.threads || []);
+            const loadedByUsername = new Map(threads.map((thread) => [thread.username, thread]));
+            threads = normalizeThreads(data.threads || []).map((thread) => {
+                const existing = loadedByUsername.get(thread.username);
+                if (!existing?.messages_loaded) return thread;
+                return {
+                    ...thread,
+                    messages: existing.messages,
+                    messages_loaded: true,
+                };
+            });
             const nextIndex = threads.findIndex((thread) => thread.username === currentUsername);
             activeThreadIndex = nextIndex >= 0 ? nextIndex : 0;
             unreadMessageCount = data.unread_count || 0;
             renderThreads();
             updateMessageBadges();
+            const activeUsername = threads[activeThreadIndex]?.username;
+            if (activeUsername) await loadConversation(activeUsername, silent, markRead);
         } catch (error) {
             if (!silent) showToast("메시지를 불러오지 못했어요.");
+        }
+    }
+
+    async function loadConversation(username, silent = false, markRead = true) {
+        const threadIndex = threads.findIndex((thread) => thread.username === username);
+        if (threadIndex < 0) return;
+
+        const requestId = ++conversationRequestId;
+        const params = new URLSearchParams({ limit: "20" });
+        if (markRead) params.set("mark_read", "1");
+
+        try {
+            const response = await fetch(`/api/messages/${encodeURIComponent(username)}?${params.toString()}`);
+            const data = await response.json();
+            if (!response.ok) {
+                if (!silent) showToast(data.error || "대화를 불러오지 못했어요.");
+                return;
+            }
+            if (requestId !== conversationRequestId) return;
+
+            const currentIndex = threads.findIndex((thread) => thread.username === username);
+            if (currentIndex < 0) return;
+            threads[currentIndex].messages = data.messages || [];
+            threads[currentIndex].messages_loaded = true;
+            if (markRead) threads[currentIndex].unread_count = 0;
+            unreadMessageCount = data.unread_count || 0;
+            activeThreadIndex = currentIndex;
+            renderThreads();
+            updateMessageBadges();
+        } catch (error) {
+            if (!silent) showToast("대화를 불러오지 못했어요.");
         }
     }
 
@@ -3271,7 +3319,12 @@
         roomHeader.appendChild(roomTitle);
         roomNode.appendChild(roomHeader);
 
-        if (!activeThread.messages.length) {
+        if (!activeThread.messages_loaded) {
+            const loadingMessage = document.createElement("div");
+            loadingMessage.className = "message-room-empty";
+            loadingMessage.textContent = "대화를 불러오는 중이에요...";
+            roomNode.appendChild(loadingMessage);
+        } else if (!activeThread.messages.length) {
             const guide = document.createElement("div");
             guide.className = "message-room-empty";
             guide.textContent = `${activeThread.name || activeThread.username}님에게 첫 메시지를 보내보세요.`;
@@ -3294,7 +3347,7 @@
         }
 
         if (input) input.placeholder = `${activeThread.name || "친구"}에게 메시지 보내기`;
-        if (form) form.hidden = false;
+        if (form) form.hidden = !activeThread.messages_loaded;
         roomNode.scrollTop = roomNode.scrollHeight;
     }
 
@@ -3467,7 +3520,7 @@
             const selectedThread = threads[activeThreadIndex];
             renderThreads();
             clearMessageToneSuggestions();
-            if (selectedThread?.unread_count) loadThreads(selectedThread.username, true, true);
+            if (selectedThread) loadConversation(selectedThread.username, true, true);
         });
 
         if (tonePreview) {
@@ -3508,6 +3561,8 @@
                 }
 
                 activeThread.messages.push(data.message);
+                activeThread.messages = activeThread.messages.slice(-20);
+                activeThread.messages_loaded = true;
                 activeThread.last_message = data.message.body;
                 activeThread.last_time = data.message.created_at;
                 activeThread.unread_count = 0;

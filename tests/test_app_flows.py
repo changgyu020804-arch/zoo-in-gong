@@ -478,6 +478,72 @@ def test_messages_create_unread_thread_and_mark_read(client):
     assert read_response.get_json()["threads"][0]["unread_count"] == 0
 
 
+def test_message_list_defers_conversation_and_room_loads_latest_twenty(client):
+    create_user(client, "nari", "나리")
+    create_user(client, "bori", "보리")
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            "INSERT INTO follows (follower_username, followed_username) VALUES (?, ?)",
+            ("nari", "bori"),
+        )
+        for index in range(35):
+            sender, receiver = ("nari", "bori") if index % 2 == 0 else ("bori", "nari")
+            conn.execute(
+                """
+                INSERT INTO messages (sender_username, receiver_username, body, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (sender, receiver, f"메시지 {index}", f"2026-06-01 10:{index:02d}:00"),
+            )
+        conn.commit()
+
+    login_as(client, "nari")
+    thread_data = client.get("/api/messages").get_json()
+
+    assert len(thread_data["threads"]) == 1
+    assert thread_data["threads"][0]["last_message"] == "메시지 34"
+    assert thread_data["threads"][0]["messages"] == []
+    assert thread_data["threads"][0]["messages_loaded"] is False
+
+    conversation = client.get("/api/messages/bori?limit=20&mark_read=1").get_json()
+    assert len(conversation["messages"]) == 20
+    assert conversation["messages"][0]["body"] == "메시지 15"
+    assert conversation["messages"][-1]["body"] == "메시지 34"
+    assert conversation["unread_count"] == 0
+
+
+def test_feed_limits_comment_preview_but_detail_returns_all_comments(client):
+    create_user(client, "nari", "나리")
+    with client.db.get_db_connection() as conn:
+        cursor = conn.execute(
+            "INSERT INTO posts (image_url, caption, username, activity_text) VALUES (?, ?, ?, ?)",
+            ("/static/uploads/comments.jpg", "댓글 테스트", "nari", "산책"),
+        )
+        post_id = cursor.lastrowid
+        for index in range(7):
+            conn.execute(
+                """
+                INSERT INTO comments (post_id, content, username, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (post_id, f"<b>나리</b> 댓글 {index}", "nari", f"2026-06-01 10:0{index}:00"),
+            )
+        conn.commit()
+
+    login_as(client, "nari")
+    home_html = client.get("/").get_data(as_text=True)
+    post_start = home_html.index(f'id="post-{post_id}"')
+    post_end = home_html.index("</article>", post_start)
+    post_html = home_html[post_start:post_end]
+
+    assert post_html.count('class="comment-item"') == 3
+    assert f'id="comment-count-{post_id}">7<' in post_html
+
+    detail = client.get(f"/api/posts/{post_id}").get_json()["post"]
+    assert detail["comment_count"] == 7
+    assert len(detail["comments"]) == 7
+
+
 def test_message_tone_preview_uses_sender_profile(client):
     create_user(client, "nari", "나리")
     create_user(client, "bori", "보리")

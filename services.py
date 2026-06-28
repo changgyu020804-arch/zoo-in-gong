@@ -818,7 +818,7 @@ def build_message_threads(profile, mark_read=False, partner_to_mark=None):
             )
             SELECT partner_username, id, sender_username, receiver_username, body, read_at, created_at
             FROM scoped_messages
-            WHERE row_number <= 80
+            WHERE row_number = 1
             ORDER BY partner_username ASC, created_at ASC, id ASC
             """,
             [username, username, username, *partner_usernames, username, *partner_usernames],
@@ -858,7 +858,8 @@ def build_message_threads(profile, mark_read=False, partner_to_mark=None):
                 "initial": profile_data["initial"],
                 "last_message": last_message,
                     "last_time": last_time,
-                    "messages": message_items,
+                    "messages": [],
+                    "messages_loaded": False,
                     "unread_count": unread_counts.get(partner_username, 0),
                     "can_message": True,
                 }
@@ -866,6 +867,41 @@ def build_message_threads(profile, mark_read=False, partner_to_mark=None):
 
     threads.sort(key=lambda thread: thread["last_time"] or "", reverse=True)
     return threads
+
+
+def get_conversation_messages(username, partner_username, limit=20, mark_read=False):
+    page_size = min(50, max(1, int(limit or 20)))
+    with get_db_connection() as conn:
+        if not can_message_user(conn, username, partner_username):
+            return None
+        if mark_read:
+            mark_messages_read(conn, username, partner_username)
+            conn.commit()
+
+        rows = conn.execute(
+            """
+            SELECT id, sender_username, receiver_username, body, read_at, created_at
+            FROM messages
+            WHERE (sender_username = ? AND receiver_username = ?)
+               OR (sender_username = ? AND receiver_username = ?)
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (username, partner_username, partner_username, username, page_size),
+        ).fetchall()
+
+    return [
+        {
+            "id": row["id"],
+            "sender": row["sender_username"],
+            "receiver": row["receiver_username"],
+            "body": row["body"],
+            "created_at": row["created_at"],
+            "read_at": row["read_at"] or "",
+            "is_me": row["sender_username"] == username,
+        }
+        for row in reversed(rows)
+    ]
 
 
 def get_friend_suggestions(username, limit=8):
@@ -1077,20 +1113,41 @@ def build_comment_item(row, viewer_username=None):
     }
 
 
-def fetch_comments_by_post(conn, post_ids, viewer_username=None):
+def fetch_comments_by_post(conn, post_ids, viewer_username=None, limit_per_post=None):
     if not post_ids:
         return {}
 
     placeholders = ",".join("?" for _ in post_ids)
-    rows = conn.execute(
-        f"""
-        SELECT id, post_id, content, username, created_at
-        FROM comments
-        WHERE post_id IN ({placeholders})
-        ORDER BY id ASC
-        """,
-        post_ids,
-    ).fetchall()
+    if limit_per_post is not None:
+        rows = conn.execute(
+            f"""
+            SELECT id, post_id, content, username, created_at
+            FROM (
+                SELECT
+                    id,
+                    post_id,
+                    content,
+                    username,
+                    created_at,
+                    ROW_NUMBER() OVER (PARTITION BY post_id ORDER BY id DESC) AS row_number
+                FROM comments
+                WHERE post_id IN ({placeholders})
+            )
+            WHERE row_number <= ?
+            ORDER BY post_id ASC, id ASC
+            """,
+            [*post_ids, max(1, int(limit_per_post))],
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"""
+            SELECT id, post_id, content, username, created_at
+            FROM comments
+            WHERE post_id IN ({placeholders})
+            ORDER BY id ASC
+            """,
+            post_ids,
+        ).fetchall()
 
     comments_by_post = {post_id: [] for post_id in post_ids}
     for row in rows:
@@ -1105,6 +1162,7 @@ def get_posts(
     limit=None,
     before_created_at=None,
     before_id=None,
+    comment_limit=None,
 ):
     if post_ids is not None:
         post_ids = list(dict.fromkeys(post_ids))
@@ -1125,6 +1183,7 @@ def get_posts(
             p.growth_milestone,
             p.pet_age_at_post,
             p.likes,
+            (SELECT COUNT(*) FROM comments comment_count WHERE comment_count.post_id = p.id) AS comment_count,
             p.username AS post_username,
             {profile_columns}
         FROM posts p
@@ -1152,7 +1211,12 @@ def get_posts(
     with get_db_connection() as conn:
         rows = conn.execute(query, params).fetchall()
         row_ids = [row["id"] for row in rows]
-        comments_by_post = fetch_comments_by_post(conn, row_ids, viewer_username)
+        comments_by_post = fetch_comments_by_post(
+            conn,
+            row_ids,
+            viewer_username,
+            limit_per_post=comment_limit,
+        )
         following_usernames = get_following_usernames(conn, viewer_username) if viewer_username else set()
         liked_post_ids = set()
         bookmarked_post_ids = set()
@@ -1200,6 +1264,7 @@ def get_posts(
                 "growth_milestone": row["growth_milestone"] or "",
                 "pet_age_at_post": row["pet_age_at_post"],
                 "likes": row["likes"] or 0,
+                "comment_count": row["comment_count"] or 0,
                 "liked_by_viewer": row["id"] in liked_post_ids,
                 "bookmarked_by_viewer": row["id"] in bookmarked_post_ids,
                 "username": post_username,
@@ -1228,6 +1293,7 @@ def get_feed_page(viewer_username, limit=20, before_created_at=None, before_id=N
         limit=page_size + 1,
         before_created_at=before_created_at,
         before_id=before_id,
+        comment_limit=3,
     )
     has_more = len(posts) > page_size
     page_posts = posts[:page_size]

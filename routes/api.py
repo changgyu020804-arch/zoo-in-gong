@@ -8,6 +8,7 @@ from services import (
     build_notifications,
     can_message_user,
     create_notification,
+    get_conversation_messages,
     get_feed_page,
     get_post,
     get_unread_message_count,
@@ -206,13 +207,29 @@ def register_api_routes(app):
 
         return jsonify({"suggestions": suggest_message_tones(get_user_profile(username), body)})
 
-    @app.route("/api/messages/<target_username>", methods=["POST"])
+    @app.route("/api/messages/<target_username>", methods=["GET", "POST"])
     def api_send_message(target_username):
         username, error = login_required_json()
         if error:
             return error
 
         target_username = clean_single_line_text(target_username, 80)
+        if request.method == "GET":
+            messages = get_conversation_messages(
+                username,
+                target_username,
+                limit=request.args.get("limit", default=20, type=int),
+                mark_read=request.args.get("mark_read") == "1",
+            )
+            if messages is None:
+                return jsonify({"error": "이 친구와 대화할 수 없습니다."}), 403
+            return jsonify(
+                {
+                    "messages": messages,
+                    "unread_count": get_unread_message_count(username),
+                }
+            )
+
         payload = request.get_json(silent=True) or {}
         body = clean_multi_line_text(payload.get("body", ""), 500)
         if not body:
