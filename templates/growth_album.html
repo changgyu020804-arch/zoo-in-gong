@@ -50,7 +50,7 @@
                         {% for post in group.posts %}
                         <article class="album-card">
                             <a class="album-image-link" href="{{ url_for('index') }}#post-{{ post.id }}">
-                                <img src="{{ post.image_url }}" alt="{{ post.pet_name }}의 {{ post.album_date_label }} 기록">
+                                <img src="{{ post.image_url }}" alt="{{ post.pet_name }}의 {{ post.album_date_label }} 기록" loading="lazy" decoding="async">
                                 {% if post.growth_milestone %}
                                 <span class="album-milestone"><i class="fa-solid fa-star"></i> {{ post.growth_milestone }}</span>
                                 {% endif %}

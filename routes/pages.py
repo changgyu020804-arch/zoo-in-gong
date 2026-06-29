@@ -172,7 +172,7 @@ def render_profile_page(target_username):
         viewer=viewer_profile,
         can_edit=is_owner,
         is_following=target_username in following_usernames,
-        posts=get_posts(target_username, viewer_username=viewer_username),
+        posts=get_posts(target_username, comment_limit=0),
         saved_posts=get_bookmarked_posts(viewer_username) if is_owner else [],
         stats=stats,
         notifications=notifications,

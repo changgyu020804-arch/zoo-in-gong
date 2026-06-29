@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from flask import Flask, g, request, session
@@ -39,17 +40,24 @@ def configure_logging():
     root_logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
 
-    log_path = BASE_DIR / "server.log"
-    has_file_handler = any(
-        isinstance(handler, logging.FileHandler)
-        and Path(getattr(handler, "baseFilename", "")).resolve() == log_path.resolve()
-        for handler in root_logger.handlers
-    )
-    if not has_file_handler:
-        file_handler = logging.FileHandler(log_path, encoding="utf-8")
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
+    file_logging_default = "0" if os.environ.get("RENDER") else "1"
+    if os.environ.get("FILE_LOGGING", file_logging_default) == "1":
+        log_path = BASE_DIR / "server.log"
+        has_file_handler = any(
+            isinstance(handler, logging.FileHandler)
+            and Path(getattr(handler, "baseFilename", "")).resolve() == log_path.resolve()
+            for handler in root_logger.handlers
+        )
+        if not has_file_handler:
+            file_handler = RotatingFileHandler(
+                log_path,
+                maxBytes=2 * 1024 * 1024,
+                backupCount=2,
+                encoding="utf-8",
+            )
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
 
     has_stream_handler = any(
         isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler)
@@ -141,8 +149,9 @@ def create_app(database_path=None, upload_folder=None, testing=False):
 
     @app.before_request
     def record_request_start():
-        g.request_started_at = time.perf_counter()
-        g.request_started_memory_mb = get_process_memory_mb()
+        if should_log_request_memory():
+            g.request_started_at = time.perf_counter()
+            g.request_started_memory_mb = get_process_memory_mb()
 
     @app.after_request
     def finalize_response(response):

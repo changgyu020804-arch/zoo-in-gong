@@ -377,7 +377,7 @@
                 <div class="explore-grid">
                     {% for post in posts[:9] %}
                     <button class="explore-card js-open-post-detail" data-post-id="{{ post.id }}">
-                        <img src="{{ post.image_url }}" alt="{{ post.pet_name }}">
+                        <img src="{{ post.image_url }}" alt="{{ post.pet_name }}" loading="lazy" decoding="async">
                         <div class="explore-overlay">
                             <strong>{{ post.pet_name }}</strong>
                             <span>#{{ post.persona }}</span>

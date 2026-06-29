@@ -601,7 +601,9 @@ def _select_daily_award_winners(ranked_posts, category, used_post_ids, used_imag
 
 
 def build_daily_awards(viewer_username=None, limit_per_category=1):
-    posts = get_posts(viewer_username=viewer_username)[:80]
+    # Awards are identical for every viewer and do not render comments or
+    # viewer-specific like/bookmark state.
+    posts = get_posts(limit=80, comment_limit=0)
     if not posts:
         return []
 
@@ -1117,6 +1119,10 @@ def fetch_comments_by_post(conn, post_ids, viewer_username=None, limit_per_post=
     if not post_ids:
         return {}
 
+    comments_by_post = {post_id: [] for post_id in post_ids}
+    if limit_per_post is not None and int(limit_per_post) <= 0:
+        return comments_by_post
+
     placeholders = ",".join("?" for _ in post_ids)
     if limit_per_post is not None:
         rows = conn.execute(
@@ -1149,7 +1155,6 @@ def fetch_comments_by_post(conn, post_ids, viewer_username=None, limit_per_post=
             post_ids,
         ).fetchall()
 
-    comments_by_post = {post_id: [] for post_id in post_ids}
     for row in rows:
         comments_by_post.setdefault(row["post_id"], []).append(build_comment_item(row, viewer_username))
     return comments_by_post
@@ -1307,7 +1312,7 @@ def get_feed_page(viewer_username, limit=20, before_created_at=None, before_id=N
 
 
 def get_growth_album(username, viewer_username=None):
-    posts = get_posts(username, viewer_username=viewer_username)
+    posts = get_posts(username, comment_limit=0)
     posts.sort(
         key=lambda post: (
             post.get("taken_on") or (post.get("created_at") or "")[:10],
@@ -1379,7 +1384,7 @@ def get_bookmarked_posts(username):
         return []
     posts_by_id = {
         post["id"]: post
-        for post in get_posts(viewer_username=username, post_ids=bookmarked_ids)
+        for post in get_posts(post_ids=bookmarked_ids, comment_limit=0)
     }
     return [posts_by_id[post_id] for post_id in bookmarked_ids if post_id in posts_by_id]
 
@@ -1434,20 +1439,33 @@ def build_like_ranking():
             LIMIT 5
             """
         ).fetchall()
-        latest_rows = conn.execute(
-            """
-            SELECT p.id, p.username, p.image_url, p.caption, p.created_at, p.likes
-            FROM posts p
-            JOIN (
-                SELECT username, MAX(created_at) AS latest_at
-                FROM posts
-                GROUP BY username
-            ) latest
-              ON latest.username = p.username
-             AND latest.latest_at = p.created_at
-            ORDER BY p.id DESC
-            """
-        ).fetchall()
+        ranked_usernames = [row["username"] for row in rows]
+        if ranked_usernames:
+            placeholders = ",".join("?" for _ in ranked_usernames)
+            latest_rows = conn.execute(
+                f"""
+                SELECT id, username, image_url, caption, created_at, likes
+                FROM (
+                    SELECT
+                        p.id,
+                        p.username,
+                        p.image_url,
+                        p.caption,
+                        p.created_at,
+                        p.likes,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY p.username
+                            ORDER BY p.created_at DESC, p.id DESC
+                        ) AS row_number
+                    FROM posts p
+                    WHERE p.username IN ({placeholders})
+                )
+                WHERE row_number = 1
+                """,
+                ranked_usernames,
+            ).fetchall()
+        else:
+            latest_rows = []
 
     latest_posts = {}
     for row in latest_rows:

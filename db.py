@@ -265,6 +265,20 @@ def init_db():
         ensure_columns(cursor, "posts", POST_COLUMNS)
         ensure_columns(cursor, "messages", MESSAGE_COLUMNS)
         ensure_columns(cursor, "comments", COMMENT_COLUMNS)
+        posts_without_created_at = cursor.execute(
+            """
+            SELECT id, image_url
+            FROM posts
+            WHERE created_at IS NULL OR created_at = ''
+            """
+        ).fetchall()
+        for row in posts_without_created_at:
+            upload_time = timestamp_from_upload_url(row["image_url"])
+            if upload_time:
+                cursor.execute(
+                    "UPDATE posts SET created_at = ? WHERE id = ?",
+                    (upload_time, row["id"]),
+                )
         cursor.execute(
             """
             UPDATE posts
@@ -286,13 +300,3 @@ def init_db():
             WHERE caption_status IS NULL OR caption_status = ''
             """
         )
-        rows = cursor.execute("SELECT id, image_url FROM posts").fetchall()
-        for row in rows:
-            upload_time = timestamp_from_upload_url(row["image_url"])
-            if upload_time:
-                cursor.execute(
-                    "UPDATE posts SET created_at = ? WHERE id = ?",
-                    (upload_time, row["id"]),
-                )
-
-        conn.commit()

@@ -224,7 +224,6 @@ def register_post_routes(app):
 
         profile = get_user_profile(username)
         if caption_override:
-            analysis = {"scene": ""}
             caption_text = sanitize_caption_text(caption_override)
             caption = escape(caption_text).replace("\n", "<br>") if caption_text else ""
             caption_status = "ready"
