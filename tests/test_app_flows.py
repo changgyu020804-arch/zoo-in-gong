@@ -551,6 +551,72 @@ def test_like_comment_and_profile_update_flow(client):
     assert notifications["unread_count"] == 2
 
 
+def test_cute_and_funny_reactions_toggle_and_reach_post_detail(client):
+    create_user(client, "owner", "오너")
+    create_user(client, "friend", "친구")
+    with client.db.get_db_connection() as conn:
+        cursor = conn.execute(
+            "INSERT INTO posts (image_url, caption, username) VALUES (?, ?, ?)",
+            ("/static/uploads/reaction.jpg", "반응 테스트", "owner"),
+        )
+        post_id = cursor.lastrowid
+        conn.commit()
+
+    login_as(client, "friend")
+    cute = client.post(f"/react/cute/{post_id}")
+    funny = client.post(f"/react/funny/{post_id}")
+
+    assert cute.status_code == 200
+    assert cute.get_json() == {"reaction_type": "cute", "count": 1, "reacted": True}
+    assert funny.status_code == 200
+    assert funny.get_json() == {"reaction_type": "funny", "count": 1, "reacted": True}
+
+    detail = client.get(f"/api/posts/{post_id}").get_json()["post"]
+    assert detail["cute_count"] == 1
+    assert detail["funny_count"] == 1
+    assert detail["cute_by_viewer"] is True
+    assert detail["funny_by_viewer"] is True
+
+    removed = client.post(f"/react/cute/{post_id}")
+    assert removed.get_json() == {"reaction_type": "cute", "count": 0, "reacted": False}
+    assert client.post(f"/react/unknown/{post_id}").status_code == 400
+
+
+def test_home_has_switchable_like_cute_and_funny_rankings(client):
+    create_user(client, "viewer", "구경이")
+    create_user(client, "cute_star", "귀요미")
+    create_user(client, "funny_star", "웃음이")
+    with client.db.get_db_connection() as conn:
+        cute_post = conn.execute(
+            "INSERT INTO posts (image_url, caption, username, likes) VALUES (?, ?, ?, ?)",
+            ("/static/uploads/cute.jpg", "귀여운 날", "cute_star", 2),
+        ).lastrowid
+        funny_post = conn.execute(
+            "INSERT INTO posts (image_url, caption, username, likes) VALUES (?, ?, ?, ?)",
+            ("/static/uploads/funny.jpg", "웃긴 날", "funny_star", 1),
+        ).lastrowid
+        conn.executemany(
+            "INSERT INTO post_reactions (post_id, username, reaction_type) VALUES (?, ?, ?)",
+            [
+                (cute_post, "viewer", "cute"),
+                (funny_post, "viewer", "funny"),
+                (funny_post, "cute_star", "funny"),
+            ],
+        )
+        conn.commit()
+
+    login_as(client, "viewer")
+    html = client.get("/").get_data(as_text=True)
+
+    assert 'data-ranking-tab="likes"' in html
+    assert 'data-ranking-tab="cute"' in html
+    assert 'data-ranking-tab="funny"' in html
+    assert 'data-ranking-panel="cute"' in html
+    assert 'data-ranking-panel="funny"' in html
+    assert "1 귀여워" in html
+    assert "2 웃겨" in html
+
+
 def test_messages_create_unread_thread_and_mark_read(client):
     create_user(client, "nari", "나리")
     create_user(client, "bori", "보리")

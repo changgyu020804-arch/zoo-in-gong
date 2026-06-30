@@ -372,6 +372,24 @@
         likeCount.textContent = post.likes || 0;
         like.append(createIcon("fa-solid fa-heart"), likeCount);
 
+        const createReactionButton = (type, label, iconClass) => {
+            const reacted = Boolean(post[`${type}_by_viewer`]);
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = `dog-action-button reaction-button reaction-${type} js-reaction-button ${reacted ? "is-reacted" : ""}`;
+            button.dataset.postId = post.id;
+            button.dataset.reaction = type;
+            button.dataset.reacted = reacted ? "true" : "false";
+            button.setAttribute("aria-label", label);
+            const count = document.createElement("strong");
+            count.dataset.reactionCountFor = `${type}:${post.id}`;
+            count.textContent = post[`${type}_count`] || 0;
+            button.append(createIcon(iconClass), count);
+            return button;
+        };
+        const cute = createReactionButton("cute", "귀여워", "fa-solid fa-face-grin-hearts");
+        const funny = createReactionButton("funny", "웃겨", "fa-solid fa-face-laugh-squint");
+
         const comment = document.createElement("button");
         comment.type = "button";
         comment.className = "dog-action-button js-comment-focus";
@@ -396,7 +414,7 @@
         detail.dataset.postId = post.id;
         detail.setAttribute("aria-label", "상세 보기");
         detail.appendChild(createIcon("fa-regular fa-window-maximize"));
-        actions.append(like, comment, bookmark, detail);
+        actions.append(like, cute, funny, comment, bookmark, detail);
 
         const copy = document.createElement("div");
         copy.className = "post-copy";
@@ -2113,6 +2131,33 @@
         }
     }
 
+    function syncReactionState(postId, reactionType, count, reacted) {
+        const escapedPostId = CSS.escape(String(postId));
+        const escapedType = CSS.escape(String(reactionType));
+        document
+            .querySelectorAll(`.js-reaction-button[data-post-id="${escapedPostId}"][data-reaction="${escapedType}"]`)
+            .forEach((button) => {
+                button.dataset.reacted = reacted ? "true" : "false";
+                button.classList.toggle("is-reacted", reacted);
+            });
+        document
+            .querySelectorAll(`[data-reaction-count-for="${escapedType}:${escapedPostId}"]`)
+            .forEach((node) => {
+                node.textContent = count;
+            });
+
+        if (activeDetailPostId === String(postId)) {
+            const detailButton = document.querySelector(`.js-detail-reaction[data-reaction="${escapedType}"]`);
+            const detailCount = document.querySelector(`[data-detail-reaction-count="${escapedType}"]`);
+            if (detailButton) detailButton.classList.toggle("is-reacted", reacted);
+            if (detailCount) detailCount.textContent = count;
+            if (activeDetailPost) {
+                activeDetailPost[`${reactionType}_count`] = count;
+                activeDetailPost[`${reactionType}_by_viewer`] = reacted;
+            }
+        }
+    }
+
     function syncCommentCount(postId, explicitCount = null) {
         const countNode = document.getElementById(`comment-count-${postId}`);
         if (!countNode) return;
@@ -2243,6 +2288,20 @@
             syncLikeState(postId, data.likes, data.liked);
         } catch (error) {
             showToast("좋아요 반영에 실패했어요.");
+        }
+    }
+
+    async function reactToPost(postId, reactionType) {
+        try {
+            const response = await fetch(`/react/${encodeURIComponent(reactionType)}/${postId}`, { method: "POST" });
+            const data = await response.json();
+            if (!response.ok) {
+                showToast(data.error || "반응을 남기지 못했어요.");
+                return;
+            }
+            syncReactionState(postId, data.reaction_type, data.count, data.reacted);
+        } catch (error) {
+            showToast("반응을 남기지 못했어요.");
         }
     }
 
@@ -2585,6 +2644,12 @@
         }
         if (editButton) editButton.hidden = !canEdit;
         if (likeButton) likeButton.classList.toggle("is-liked", Boolean(post.liked_by_viewer));
+        document.querySelectorAll(".js-detail-reaction").forEach((button) => {
+            const reactionType = button.dataset.reaction;
+            button.classList.toggle("is-reacted", Boolean(post[`${reactionType}_by_viewer`]));
+            const count = button.querySelector(`[data-detail-reaction-count="${CSS.escape(reactionType)}"]`);
+            if (count) count.textContent = post[`${reactionType}_count`] || 0;
+        });
         if (bookmarkButton) bookmarkButton.classList.toggle("is-bookmarked", Boolean(post.bookmarked_by_viewer));
         if (editPanel) {
             editPanel.hidden = true;
@@ -2718,6 +2783,28 @@
                 return;
             }
 
+            const reactionButton = event.target.closest(".js-reaction-button");
+            if (reactionButton) {
+                event.preventDefault();
+                reactToPost(reactionButton.dataset.postId, reactionButton.dataset.reaction);
+                return;
+            }
+
+            const rankingTab = event.target.closest(".js-ranking-tab");
+            if (rankingTab) {
+                event.preventDefault();
+                const mode = rankingTab.dataset.rankingTab;
+                document.querySelectorAll(".js-ranking-tab").forEach((button) => {
+                    const active = button.dataset.rankingTab === mode;
+                    button.classList.toggle("is-active", active);
+                    button.setAttribute("aria-selected", active ? "true" : "false");
+                });
+                document.querySelectorAll(".js-ranking-panel").forEach((panel) => {
+                    panel.hidden = panel.dataset.rankingPanel !== mode;
+                });
+                return;
+            }
+
             const bookmarkButton = event.target.closest(".js-bookmark-button");
             if (bookmarkButton) {
                 event.preventDefault();
@@ -2792,6 +2879,13 @@
             if (detailLike && activeDetailPostId) {
                 event.preventDefault();
                 likePost(activeDetailPostId);
+                return;
+            }
+
+            const detailReaction = event.target.closest(".js-detail-reaction");
+            if (detailReaction && activeDetailPostId) {
+                event.preventDefault();
+                reactToPost(activeDetailPostId, detailReaction.dataset.reaction);
                 return;
             }
 
@@ -3590,6 +3684,8 @@
     function notificationIcon(type) {
         return {
             like: "fa-solid fa-heart",
+            cute: "fa-solid fa-face-grin-hearts",
+            funny: "fa-solid fa-face-laugh-squint",
             comment: "fa-regular fa-comment",
             follow: "fa-solid fa-user-plus",
             message: "fa-regular fa-paper-plane",

@@ -90,6 +90,10 @@ def delete_user(username, confirm=False):
             "posts": len(post_ids),
             "comments_by_user": conn.execute("SELECT COUNT(*) FROM comments WHERE username = ?", (username,)).fetchone()[0],
             "likes_by_user": conn.execute("SELECT COUNT(*) FROM post_likes WHERE username = ?", (username,)).fetchone()[0],
+            "reactions_by_user": conn.execute(
+                "SELECT COUNT(*) FROM post_reactions WHERE username = ?",
+                (username,),
+            ).fetchone()[0],
             "bookmarks_by_user": conn.execute("SELECT COUNT(*) FROM post_bookmarks WHERE username = ?", (username,)).fetchone()[0],
             "follows": conn.execute(
                 "SELECT COUNT(*) FROM follows WHERE follower_username = ? OR followed_username = ?",
@@ -115,6 +119,10 @@ def delete_user(username, confirm=False):
                 f"SELECT COUNT(*) FROM post_likes WHERE post_id IN ({placeholders})",
                 post_ids,
             ).fetchone()[0]
+            counts["reactions_on_posts"] = conn.execute(
+                f"SELECT COUNT(*) FROM post_reactions WHERE post_id IN ({placeholders})",
+                post_ids,
+            ).fetchone()[0]
             counts["bookmarks_on_posts"] = conn.execute(
                 f"SELECT COUNT(*) FROM post_bookmarks WHERE post_id IN ({placeholders})",
                 post_ids,
@@ -122,6 +130,7 @@ def delete_user(username, confirm=False):
         else:
             counts["comments_on_posts"] = 0
             counts["likes_on_posts"] = 0
+            counts["reactions_on_posts"] = 0
             counts["bookmarks_on_posts"] = 0
 
         print(f"target username: {username}")
@@ -138,10 +147,12 @@ def delete_user(username, confirm=False):
             placeholders = ",".join("?" for _ in post_ids)
             conn.execute(f"DELETE FROM comments WHERE post_id IN ({placeholders})", post_ids)
             conn.execute(f"DELETE FROM post_likes WHERE post_id IN ({placeholders})", post_ids)
+            conn.execute(f"DELETE FROM post_reactions WHERE post_id IN ({placeholders})", post_ids)
             conn.execute(f"DELETE FROM post_bookmarks WHERE post_id IN ({placeholders})", post_ids)
 
         conn.execute("DELETE FROM comments WHERE username = ?", (username,))
         conn.execute("DELETE FROM post_likes WHERE username = ?", (username,))
+        conn.execute("DELETE FROM post_reactions WHERE username = ?", (username,))
         conn.execute("DELETE FROM post_bookmarks WHERE username = ?", (username,))
         conn.execute("DELETE FROM follows WHERE follower_username = ? OR followed_username = ?", (username, username))
         conn.execute("DELETE FROM messages WHERE sender_username = ? OR receiver_username = ?", (username, username))

@@ -183,6 +183,32 @@ def init_db():
         )
         cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS post_reactions
+            (
+                post_id INTEGER NOT NULL,
+                username TEXT NOT NULL,
+                reaction_type TEXT NOT NULL CHECK (reaction_type IN ('cute', 'funny')),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (post_id, username, reaction_type),
+                FOREIGN KEY(post_id) REFERENCES posts(id),
+                FOREIGN KEY(username) REFERENCES users(username)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_post_reactions_type_post
+            ON post_reactions(reaction_type, post_id)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_post_reactions_username
+            ON post_reactions(username, reaction_type)
+            """
+        )
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS post_bookmarks
             (
                 post_id INTEGER NOT NULL,

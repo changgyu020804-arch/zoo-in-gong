@@ -1189,6 +1189,16 @@ def get_posts(
             p.pet_age_at_post,
             p.likes,
             (SELECT COUNT(*) FROM comments comment_count WHERE comment_count.post_id = p.id) AS comment_count,
+            (
+                SELECT COUNT(*)
+                FROM post_reactions cute_reaction
+                WHERE cute_reaction.post_id = p.id AND cute_reaction.reaction_type = 'cute'
+            ) AS cute_count,
+            (
+                SELECT COUNT(*)
+                FROM post_reactions funny_reaction
+                WHERE funny_reaction.post_id = p.id AND funny_reaction.reaction_type = 'funny'
+            ) AS funny_count,
             p.username AS post_username,
             {profile_columns}
         FROM posts p
@@ -1224,6 +1234,8 @@ def get_posts(
         )
         following_usernames = get_following_usernames(conn, viewer_username) if viewer_username else set()
         liked_post_ids = set()
+        cute_post_ids = set()
+        funny_post_ids = set()
         bookmarked_post_ids = set()
         if viewer_username and rows:
             placeholders = ",".join("?" for _ in row_ids)
@@ -1237,6 +1249,21 @@ def get_posts(
                 [viewer_username, *row_ids],
             ).fetchall()
             liked_post_ids = {row["post_id"] for row in like_rows}
+            reaction_rows = conn.execute(
+                f"""
+                SELECT post_id, reaction_type
+                FROM post_reactions
+                WHERE username = ?
+                  AND post_id IN ({placeholders})
+                """,
+                [viewer_username, *row_ids],
+            ).fetchall()
+            cute_post_ids = {
+                row["post_id"] for row in reaction_rows if row["reaction_type"] == "cute"
+            }
+            funny_post_ids = {
+                row["post_id"] for row in reaction_rows if row["reaction_type"] == "funny"
+            }
             bookmark_rows = conn.execute(
                 f"""
                 SELECT post_id
@@ -1270,7 +1297,11 @@ def get_posts(
                 "pet_age_at_post": row["pet_age_at_post"],
                 "likes": row["likes"] or 0,
                 "comment_count": row["comment_count"] or 0,
+                "cute_count": row["cute_count"] or 0,
+                "funny_count": row["funny_count"] or 0,
                 "liked_by_viewer": row["id"] in liked_post_ids,
+                "cute_by_viewer": row["id"] in cute_post_ids,
+                "funny_by_viewer": row["id"] in funny_post_ids,
                 "bookmarked_by_viewer": row["id"] in bookmarked_post_ids,
                 "username": post_username,
                 "is_owner": bool(viewer_username and post_username == viewer_username),
@@ -1424,22 +1455,61 @@ def get_profile_stats(username):
     }
 
 
-def build_like_ranking():
+def build_reaction_rankings():
     with get_db_connection() as conn:
         rows = conn.execute(
             """
+            WITH post_totals AS (
+                SELECT
+                    username,
+                    COUNT(*) AS post_count,
+                    COALESCE(SUM(likes), 0) AS total_likes
+                FROM posts
+                GROUP BY username
+            ),
+            reaction_totals AS (
+                SELECT
+                    p.username,
+                    COALESCE(SUM(CASE WHEN r.reaction_type = 'cute' THEN 1 ELSE 0 END), 0) AS total_cute,
+                    COALESCE(SUM(CASE WHEN r.reaction_type = 'funny' THEN 1 ELSE 0 END), 0) AS total_funny
+                FROM posts p
+                LEFT JOIN post_reactions r ON r.post_id = p.id
+                GROUP BY p.username
+            )
             SELECT
                 u.*,
-                COALESCE(SUM(p.likes), 0) AS total_likes,
-                COUNT(p.id) AS post_count
+                COALESCE(pt.total_likes, 0) AS total_likes,
+                COALESCE(pt.post_count, 0) AS post_count,
+                COALESCE(rt.total_cute, 0) AS total_cute,
+                COALESCE(rt.total_funny, 0) AS total_funny
             FROM users u
-            LEFT JOIN posts p ON p.username = u.username
-            GROUP BY u.username
-            ORDER BY total_likes DESC, post_count DESC, u.username ASC
-            LIMIT 5
+            LEFT JOIN post_totals pt ON pt.username = u.username
+            LEFT JOIN reaction_totals rt ON rt.username = u.username
             """
         ).fetchall()
-        ranked_usernames = [row["username"] for row in rows]
+        ranking_specs = {
+            "likes": ("total_likes", "좋아요"),
+            "cute": ("total_cute", "귀여워"),
+            "funny": ("total_funny", "웃겨"),
+        }
+        ranked_rows = {}
+        for mode, (count_key, _) in ranking_specs.items():
+            ranked_rows[mode] = sorted(
+                rows,
+                key=lambda row: (
+                    -(row[count_key] or 0),
+                    -(row["post_count"] or 0),
+                    row["username"],
+                ),
+            )[:5]
+
+        ranked_usernames = list(
+            dict.fromkeys(
+                row["username"]
+                for mode_rows in ranked_rows.values()
+                for row in mode_rows
+            )
+        )
         if ranked_usernames:
             placeholders = ",".join("?" for _ in ranked_usernames)
             latest_rows = conn.execute(
@@ -1479,25 +1549,36 @@ def build_like_ranking():
                 "time_label": format_post_time(row["created_at"]),
             },
         )
-    rankings = []
-    for index, row in enumerate(rows, start=1):
-        profile = row_to_profile(row)
-        pet_name = profile["pet_name"] or profile["username"] or "멍스타"
-        rankings.append(
-            {
-                "rank": index,
-                "pet_name": pet_name,
-                "username": profile["username"],
-                "avatar_url": profile["avatar_url"],
-                "display_avatar_url": profile["display_avatar_url"],
-                "initial": pet_name[0].upper(),
-                "persona": profile["persona"],
-                "total_likes": row["total_likes"] or 0,
-                "post_count": row["post_count"] or 0,
-                "latest_post": latest_posts.get(profile["username"]),
-            }
-        )
+    rankings = {}
+    for mode, mode_rows in ranked_rows.items():
+        count_key, reaction_label = ranking_specs[mode]
+        rankings[mode] = []
+        for index, row in enumerate(mode_rows, start=1):
+            profile = row_to_profile(row)
+            pet_name = profile["pet_name"] or profile["username"] or "멍스타"
+            rankings[mode].append(
+                {
+                    "rank": index,
+                    "pet_name": pet_name,
+                    "username": profile["username"],
+                    "avatar_url": profile["avatar_url"],
+                    "display_avatar_url": profile["display_avatar_url"],
+                    "initial": pet_name[0].upper(),
+                    "persona": profile["persona"],
+                    "total_likes": row["total_likes"] or 0,
+                    "total_cute": row["total_cute"] or 0,
+                    "total_funny": row["total_funny"] or 0,
+                    "reaction_count": row[count_key] or 0,
+                    "reaction_label": reaction_label,
+                    "post_count": row["post_count"] or 0,
+                    "latest_post": latest_posts.get(profile["username"]),
+                }
+            )
     return rankings
+
+
+def build_like_ranking():
+    return build_reaction_rankings()["likes"]
 
 
 def create_notification(conn, recipient_username, actor_username, notification_type, title, body, link=""):

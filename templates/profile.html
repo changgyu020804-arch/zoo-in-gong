@@ -431,6 +431,16 @@
                             <i class="fa-solid fa-heart"></i>
                             <span>좋아요</span>
                         </button>
+                        <button type="button" class="ghost-button reaction-cute js-detail-reaction" data-reaction="cute">
+                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <span>귀여워</span>
+                            <strong data-detail-reaction-count="cute">0</strong>
+                        </button>
+                        <button type="button" class="ghost-button reaction-funny js-detail-reaction" data-reaction="funny">
+                            <i class="fa-solid fa-face-laugh-squint"></i>
+                            <span>웃겨</span>
+                            <strong data-detail-reaction-count="funny">0</strong>
+                        </button>
                         <button type="button" class="ghost-button js-detail-bookmark-post">
                             <i class="fa-regular fa-bookmark"></i>
                             <span>저장</span>
@@ -471,7 +481,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=profile-search-compact-20260626a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=reactions-ranking-20260630a"></script>
 </body>
 </html>
 

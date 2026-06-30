@@ -296,6 +296,14 @@
                             <i class="fa-solid fa-heart"></i>
                             <strong data-like-count-for="{{ post.id }}" id="like-count-{{ post.id }}">{{ post.likes }}</strong>
                         </button>
+                        <button type="button" class="dog-action-button reaction-button reaction-cute js-reaction-button {% if post.cute_by_viewer %}is-reacted{% endif %}" data-post-id="{{ post.id }}" data-reaction="cute" data-reacted="{{ 'true' if post.cute_by_viewer else 'false' }}" aria-label="귀여워">
+                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <strong data-reaction-count-for="cute:{{ post.id }}">{{ post.cute_count }}</strong>
+                        </button>
+                        <button type="button" class="dog-action-button reaction-button reaction-funny js-reaction-button {% if post.funny_by_viewer %}is-reacted{% endif %}" data-post-id="{{ post.id }}" data-reaction="funny" data-reacted="{{ 'true' if post.funny_by_viewer else 'false' }}" aria-label="웃겨">
+                            <i class="fa-solid fa-face-laugh-squint"></i>
+                            <strong data-reaction-count-for="funny:{{ post.id }}">{{ post.funny_count }}</strong>
+                        </button>
                         <button type="button" class="dog-action-button js-comment-focus" data-post-id="{{ post.id }}" aria-label="댓글">
                             <i class="fa-regular fa-comment"></i>
                             <strong id="comment-count-{{ post.id }}">{{ post.comment_count }}</strong>
@@ -425,8 +433,18 @@
                 <div class="section-head compact">
                     <h3>핫한 댕댕이</h3>
                 </div>
-                <div class="ranking-list">
-                    {% for item in like_rankings %}
+                {% set ranking_modes = [('likes', '좋아요', 'fa-heart'), ('cute', '귀여워', 'fa-face-grin-hearts'), ('funny', '웃겨', 'fa-face-laugh-squint')] %}
+                <div class="ranking-tabs" role="tablist" aria-label="댕댕이 랭킹 종류">
+                    {% for key, label, icon in ranking_modes %}
+                    <button type="button" class="ranking-tab js-ranking-tab {% if loop.first %}is-active{% endif %}" data-ranking-tab="{{ key }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                        <i class="fa-solid {{ icon }}" aria-hidden="true"></i>
+                        <span>{{ label }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% for key, label, icon in ranking_modes %}
+                <div class="ranking-list js-ranking-panel" data-ranking-panel="{{ key }}" {% if not loop.first %}hidden{% endif %}>
+                    {% for item in reaction_rankings[key] %}
                     <div class="ranking-item rank-card-{{ item.rank }}">
                         <div class="ranking-left">
                             <span class="ranking-badge rank-{{ item.rank }}">
@@ -446,7 +464,7 @@
                             <div class="ranking-copy">
                                 <div class="ranking-title-row">
                                     <a class="profile-name-link" href="{{ url_for('public_profile', target_username=item.username) }}"><strong>{{ item.pet_name }}</strong></a>
-                                    <span class="ranking-like-chip">{{ item.total_likes }} likes</span>
+                                    <span class="ranking-like-chip">{{ item.reaction_count }} {{ label }}</span>
                                 </div>
                                 <small>{{ item.persona }}</small>
                             </div>
@@ -454,6 +472,7 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% endfor %}
             </section>
 
             <section class="panel-card">
@@ -685,6 +704,16 @@
                             <i class="fa-solid fa-heart"></i>
                             <span>좋아요</span>
                         </button>
+                        <button type="button" class="ghost-button reaction-cute js-detail-reaction" data-reaction="cute">
+                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <span>귀여워</span>
+                            <strong data-detail-reaction-count="cute">0</strong>
+                        </button>
+                        <button type="button" class="ghost-button reaction-funny js-detail-reaction" data-reaction="funny">
+                            <i class="fa-solid fa-face-laugh-squint"></i>
+                            <span>웃겨</span>
+                            <strong data-detail-reaction-count="funny">0</strong>
+                        </button>
                         <button type="button" class="ghost-button js-detail-bookmark-post">
                             <i class="fa-regular fa-bookmark"></i>
                             <span>저장</span>
@@ -702,7 +731,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=lazy-comments-messages-20260628a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=reactions-ranking-20260630a"></script>
 </body>
 </html>
 

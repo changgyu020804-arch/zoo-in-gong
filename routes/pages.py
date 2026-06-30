@@ -3,7 +3,7 @@ from flask import redirect, render_template, session, url_for
 from db import get_db_connection
 from services import (
     build_daily_awards,
-    build_like_ranking,
+    build_reaction_rankings,
     build_message_threads,
     build_notifications,
     build_daily_mission,
@@ -49,6 +49,7 @@ def register_page_routes(app):
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
         feed_page = get_feed_page(username, limit=20)
+        reaction_rankings = build_reaction_rankings()
 
         return render_template(
             "index.html",
@@ -59,7 +60,8 @@ def register_page_routes(app):
             stats=stats,
             notifications=notifications,
             daily_awards=build_daily_awards(username),
-            like_rankings=build_like_ranking(),
+            like_rankings=reaction_rankings["likes"],
+            reaction_rankings=reaction_rankings,
             daily_mission=build_daily_mission(profile),
             bootstrap=bootstrap,
         )

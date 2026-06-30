@@ -43,6 +43,16 @@ GROWTH_MILESTONES = {
     "훈련 성공",
     "특별한 하루",
 }
+POST_REACTIONS = {
+    "cute": {
+        "label": "귀여워",
+        "notification": "귀엽다고 반응했어요",
+    },
+    "funny": {
+        "label": "웃겨",
+        "notification": "웃기다고 반응했어요",
+    },
+}
 
 
 def normalize_taken_on(value):
@@ -354,6 +364,84 @@ def register_post_routes(app):
             conn.commit()
         return jsonify({"likes": row["likes"] if row else 0, "liked": liked})
 
+    @app.route("/react/<reaction_type>/<int:post_id>", methods=["POST"])
+    def react_to_post(reaction_type, post_id):
+        username, error = login_required_json()
+        if error:
+            return error
+
+        reaction = POST_REACTIONS.get(reaction_type)
+        if not reaction:
+            return jsonify({"error": "지원하지 않는 반응이에요."}), 400
+
+        profile = get_user_profile(username)
+        with get_db_connection() as conn:
+            post = conn.execute(
+                """
+                SELECT p.id, p.username, u.pet_name
+                FROM posts p
+                LEFT JOIN users u ON u.username = p.username
+                WHERE p.id = ?
+                """,
+                (post_id,),
+            ).fetchone()
+            if not post:
+                return jsonify({"error": "게시물을 찾을 수 없어요."}), 404
+
+            existing = conn.execute(
+                """
+                SELECT 1
+                FROM post_reactions
+                WHERE post_id = ? AND username = ? AND reaction_type = ?
+                """,
+                (post_id, username, reaction_type),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    DELETE FROM post_reactions
+                    WHERE post_id = ? AND username = ? AND reaction_type = ?
+                    """,
+                    (post_id, username, reaction_type),
+                )
+                reacted = False
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO post_reactions (post_id, username, reaction_type)
+                    VALUES (?, ?, ?)
+                    """,
+                    (post_id, username, reaction_type),
+                )
+                reacted = True
+                create_notification(
+                    conn,
+                    post["username"],
+                    username,
+                    reaction_type,
+                    f"{profile['pet_name']}이 {reaction['notification']}",
+                    f"{post['pet_name'] or post['username']}의 게시물에 {reaction['label']} 반응을 남겼어요.",
+                    f"/#post-{post_id}",
+                )
+
+            count = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM post_reactions
+                WHERE post_id = ? AND reaction_type = ?
+                """,
+                (post_id, reaction_type),
+            ).fetchone()["count"]
+            conn.commit()
+
+        return jsonify(
+            {
+                "reaction_type": reaction_type,
+                "count": count,
+                "reacted": reacted,
+            }
+        )
+
     @app.route("/comment/<int:post_id>", methods=["POST"])
     def add_comment(post_id):
         username, error = login_required_json()
@@ -551,6 +639,7 @@ def register_post_routes(app):
             image_url = row["image_url"]
             conn.execute("DELETE FROM comments WHERE post_id = ?", (post_id,))
             conn.execute("DELETE FROM post_likes WHERE post_id = ?", (post_id,))
+            conn.execute("DELETE FROM post_reactions WHERE post_id = ?", (post_id,))
             conn.execute("DELETE FROM post_bookmarks WHERE post_id = ?", (post_id,))
             conn.execute("DELETE FROM posts WHERE id = ?", (post_id,))
             still_used = conn.execute("SELECT 1 FROM posts WHERE image_url = ? LIMIT 1", (image_url,)).fetchone()
