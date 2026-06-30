@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = inviter.pet_name ~ '와 펫 MBTI 궁합 | Zoo-In-Gong' %}
+{% include 'partials/head.html' %}
+<body class="match-invite-page dog-world-page">
+    <main class="match-invite-shell">
+        <a class="match-brand" href="{{ url_for('welcome') }}">Zoo-In-Gong</a>
+
+        <section class="match-invite-hero">
+            <span class="avatar avatar-xl avatar-ring">
+                {% if inviter.display_avatar_url %}
+                <img src="{{ inviter.display_avatar_url }}" alt="{{ inviter.pet_name }}">
+                {% else %}
+                <span>{{ inviter.initial }}</span>
+                {% endif %}
+            </span>
+            <div>
+                <p class="auth-kicker">친구 초대 펫 MBTI</p>
+                <h1>{{ inviter.pet_name }}와 얼마나 잘 맞을까요?</h1>
+                <p>{{ inviter.persona }} {{ inviter.pet_species }}가 새로운 멍친구를 기다리고 있어요.</p>
+            </div>
+        </section>
+
+        {% if match_result %}
+        <section class="match-result" aria-label="궁합 결과">
+            <div class="match-score-ring">
+                <strong>{{ match_result.match_score }}%</strong>
+                <span>{{ match_result.match_label }}</span>
+            </div>
+            <div class="match-result-copy">
+                <p class="eyebrow">{{ viewer.pet_name }} × {{ inviter.pet_name }}</p>
+                <h2>{{ match_result.match_summary }}</h2>
+                <div class="match-reason-list">
+                    {% for reason in match_result.match_reasons %}
+                    <span><i class="fa-solid fa-paw" aria-hidden="true"></i>{{ reason }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        <div class="match-actions">
+            <a class="primary-button" href="{{ url_for('public_profile', target_username=inviter.username) }}">{{ inviter.pet_name }} 프로필 보기</a>
+            <a class="ghost-button" href="{{ url_for('index') }}">홈으로 이동</a>
+        </div>
+        {% elif is_owner %}
+        <section class="match-share-panel">
+            <p class="eyebrow">내 초대 링크</p>
+            <h2>친구에게 링크를 보내보세요</h2>
+            <p>친구가 펫 MBTI를 마치면 두 강아지의 궁합 점수가 바로 나타나요.</p>
+            <div class="match-link-box">
+                <input id="matchInviteUrl" type="text" value="{{ invite_url }}" readonly aria-label="궁합 초대 링크">
+                <button
+                    type="button"
+                    class="primary-button"
+                    id="shareMatchInvite"
+                    data-share-url="{{ invite_url }}"
+                    data-share-title="{{ inviter.pet_name }}와 펫 MBTI 궁합 보기"
+                >
+                    <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                    링크 공유
+                </button>
+            </div>
+            <p class="match-share-status" id="matchShareStatus" aria-live="polite"></p>
+        </section>
+        <div class="match-actions">
+            <a class="ghost-button" href="{{ url_for('profile') }}">내 프로필로 돌아가기</a>
+        </div>
+        {% else %}
+        <section class="match-join-panel">
+            <h2>내 강아지의 펫 MBTI로 궁합을 확인해요</h2>
+            <p>처음이라면 12개 질문부터 시작하고, 기존 회원이라면 로그인 후 바로 결과를 볼 수 있어요.</p>
+            <div class="match-actions">
+                <a class="primary-button" href="{{ signup_url }}"><i class="fa-solid fa-paw"></i> MBTI 검사하고 궁합 보기</a>
+                <a class="ghost-button" href="{{ login_url }}"><i class="fa-solid fa-right-to-bracket"></i> 로그인하고 궁합 보기</a>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    {% if is_owner %}
+    <script>
+        const shareButton = document.getElementById("shareMatchInvite");
+        const shareStatus = document.getElementById("matchShareStatus");
+        const inviteInput = document.getElementById("matchInviteUrl");
+
+        shareButton?.addEventListener("click", async () => {
+            const url = shareButton.dataset.shareUrl;
+            const title = shareButton.dataset.shareTitle;
+            try {
+                if (navigator.share) {
+                    await navigator.share({ title, text: "우리 강아지 궁합을 확인해 봐요!", url });
+                    shareStatus.textContent = "공유할 앱을 선택했어요.";
+                    return;
+                }
+                await navigator.clipboard.writeText(url);
+                shareStatus.textContent = "초대 링크를 복사했어요.";
+            } catch (error) {
+                if (error?.name === "AbortError") return;
+                inviteInput.select();
+                document.execCommand("copy");
+                shareStatus.textContent = "초대 링크를 복사했어요.";
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

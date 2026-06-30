@@ -201,6 +201,84 @@ def test_signup_saves_optional_profile_avatar(client):
     assert user["avatar_url"].startswith("/uploads/signup_avatar_")
 
 
+def test_match_invite_guides_guests_and_shows_logged_in_result(client):
+    create_user(client, "nari", "나리")
+    create_user(client, "bori", "보리")
+
+    guest_response = client.get("/match/nari")
+    guest_html = guest_response.get_data(as_text=True)
+
+    assert guest_response.status_code == 200
+    assert "나리와 얼마나 잘 맞을까요?" in guest_html
+    assert "/signup?invite=nari" in guest_html
+    assert "/login?next=/match/nari" in guest_html
+
+    login_as(client, "bori")
+    result_response = client.get("/match/nari")
+    result_html = result_response.get_data(as_text=True)
+
+    assert result_response.status_code == 200
+    assert "보리 × 나리" in result_html
+    assert "%" in result_html
+    assert "프로필 보기" in result_html
+
+
+def test_invite_login_and_signup_return_to_match_result(client):
+    create_user(client, "nari", "나리")
+    create_user(client, "bori", "보리")
+
+    login_response = client.post(
+        "/login?next=/match/nari",
+        data={"username": "bori", "password": "pw"},
+        follow_redirects=False,
+    )
+    assert login_response.status_code == 302
+    assert login_response.headers["Location"].endswith("/match/nari")
+
+    with client.session_transaction() as user_session:
+        user_session.clear()
+
+    signup_response = client.post(
+        "/signup?invite=nari",
+        data={
+            "username": "maru",
+            "password": "password1",
+            "password_confirmation": "password1",
+            "phone_number": "010-4444-5555",
+            "pet_name": "마루",
+            "pet_species": "푸들",
+            "pet_age": "2",
+            "personality": "활발한",
+        },
+        follow_redirects=False,
+    )
+    assert signup_response.status_code == 302
+    assert signup_response.headers["Location"].endswith("/match/nari")
+
+
+def test_login_next_rejects_external_redirects(client):
+    create_user(client, "nari", "나리")
+
+    response = client.post(
+        "/login?next=https://example.com/steal",
+        data={"username": "nari", "password": "pw"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
+
+
+def test_profile_exposes_own_match_invite_link(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    html = client.get("/profile").get_data(as_text=True)
+
+    assert 'href="/match/nari"' in html
+    assert "궁합 초대" in html
+
+
 def test_find_account_page_finds_username_and_resets_password(client):
     create_user(client, "nari", "나리")
 

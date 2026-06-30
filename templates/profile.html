@@ -37,6 +37,10 @@
                             <h1>{{ user.pet_name }}</h1>
                             {% if can_edit %}
                             <div class="profile-action-row">
+                                <a class="ghost-button" href="{{ url_for('match_invite', inviter_username=user.username) }}">
+                                    <i class="fa-solid fa-link"></i>
+                                    궁합 초대
+                                </a>
                                 <a class="ghost-button" href="{{ url_for('growth_album', target_username=user.username) }}">
                                     <i class="fa-solid fa-images"></i>
                                     성장 앨범

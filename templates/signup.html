@@ -40,6 +40,7 @@
             id="signupStepForm"
             data-start-section="{{ start_section | default('') }}"
         >
+            {% if invite_username %}<input type="hidden" name="invite_username" value="{{ invite_username }}">{% endif %}
             {% for persona_group in persona_questions | batch(persona_questions_per_step, none) %}
             <section class="signup-step persona-step {% if loop.first %}is-active{% endif %}" data-step="{{ loop.index0 }}" data-section="persona">
                 <p class="step-label">펫 MBTI {{ loop.index }}/{{ persona_step_count }}</p>

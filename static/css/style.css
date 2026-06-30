@@ -2590,6 +2590,169 @@ button.grid-post {
     color: #d97763;
 }
 
+.match-invite-page {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #fff4eb;
+}
+
+.match-invite-shell {
+    width: min(780px, 100%);
+    display: grid;
+    gap: 18px;
+    padding: 28px;
+    border: 1px solid #efd5c4;
+    border-radius: 8px;
+    background: #fffaf6;
+    box-shadow: 0 24px 70px rgba(103, 65, 42, 0.14);
+}
+
+.match-brand {
+    justify-self: start;
+    color: #e45c46;
+    font-family: "Bagel Fat One", "Pretendard", sans-serif;
+    font-size: 1.45rem;
+}
+
+.match-invite-hero {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: center;
+    gap: 22px;
+    padding: 22px;
+    border: 1px solid #f0d9ca;
+    border-radius: 8px;
+    background: #fff2eb;
+}
+
+.match-invite-hero h1 {
+    margin: 0;
+    color: #30251f;
+    font-family: "Jua", "Pretendard", sans-serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.16;
+    letter-spacing: 0;
+}
+
+.match-invite-hero p:last-child {
+    margin: 12px 0 0;
+    color: #756b64;
+    line-height: 1.6;
+}
+
+.match-result {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    border: 1px solid #efc2b3;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.match-score-ring {
+    width: 150px;
+    aspect-ratio: 1;
+    display: grid;
+    place-content: center;
+    gap: 3px;
+    border: 10px solid #ffd8cc;
+    border-radius: 50%;
+    background: #fff4ef;
+    color: #d84f39;
+    text-align: center;
+}
+
+.match-score-ring strong {
+    font-size: 2.4rem;
+    line-height: 1;
+}
+
+.match-score-ring span {
+    font-weight: 900;
+}
+
+.match-result-copy h2,
+.match-share-panel h2,
+.match-join-panel h2 {
+    margin: 0;
+    color: #342820;
+    font-size: 1.45rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+}
+
+.match-reason-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.match-reason-list span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid #f0c9bb;
+    border-radius: 999px;
+    background: #fff6f1;
+    color: #785347;
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.match-share-panel,
+.match-join-panel {
+    display: grid;
+    gap: 12px;
+    padding: 24px;
+    border: 1px solid #efd8ca;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.match-share-panel > p:not(.eyebrow),
+.match-join-panel > p {
+    margin: 0;
+    color: #766d67;
+    line-height: 1.6;
+}
+
+.match-link-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.match-link-box input {
+    min-width: 0;
+    background: #fffaf7;
+}
+
+.match-share-status {
+    min-height: 22px;
+    color: #d84f39 !important;
+    font-weight: 800;
+}
+
+.match-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.match-actions .primary-button,
+.match-actions .ghost-button {
+    min-height: 46px;
+    justify-content: center;
+}
+
 .auth-shell {
     width: min(420px, 100%);
     display: grid;
@@ -4974,6 +5137,56 @@ body {
 
     .welcome-path-arrow {
         display: none;
+    }
+
+    .match-invite-page {
+        place-items: start center;
+        padding: 0;
+        background: #fffaf6;
+    }
+
+    .match-invite-shell {
+        width: 100%;
+        min-height: 100dvh;
+        padding: 18px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .match-invite-hero,
+    .match-result {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        gap: 16px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .match-invite-hero .avatar-xl {
+        width: 92px;
+        height: 92px;
+    }
+
+    .match-invite-hero h1 {
+        font-size: 2rem;
+    }
+
+    .match-score-ring {
+        width: 132px;
+    }
+
+    .match-reason-list {
+        justify-content: center;
+    }
+
+    .match-link-box {
+        grid-template-columns: 1fr;
+    }
+
+    .match-actions {
+        display: grid;
+        grid-template-columns: 1fr;
     }
 }
 

@@ -1,11 +1,12 @@
 import sqlite3
+from urllib.parse import urlsplit
 
-from flask import jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import abort, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
 from caption_ai import is_supported_image_file
 from db import get_db_connection
 from persona import PERSONA_KEYS, enrich_profile, extract_persona_answers
-from services import get_user_profile
+from services import add_match_info, get_user_profile
 from text_utils import clean_multi_line_text, clean_single_line_text
 from upload_utils import store_uploaded_file
 
@@ -46,6 +47,25 @@ def username_is_available(username):
             (username,),
         ).fetchone()
     return row is None
+
+
+def username_exists(username):
+    if not username:
+        return False
+    with get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM users WHERE username = ? LIMIT 1",
+            (username,),
+        ).fetchone()
+    return row is not None
+
+
+def safe_next_path(value):
+    value = str(value or "").strip()
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/") or parsed.path.startswith("//"):
+        return ""
+    return parsed.path + (f"?{parsed.query}" if parsed.query else "")
 
 
 def password_validation_error(password, confirmation):
@@ -101,6 +121,31 @@ def register_auth_routes(app):
     def welcome():
         return render_template("welcome.html")
 
+    @app.route("/match/<inviter_username>")
+    def match_invite(inviter_username):
+        inviter_username = clean_single_line_text(inviter_username, 50)
+        if not username_exists(inviter_username):
+            abort(404)
+
+        inviter = get_user_profile(inviter_username)
+        viewer_username = session.get("username", "")
+        viewer = get_user_profile(viewer_username) if viewer_username else None
+        match_result = None
+        if viewer and viewer_username != inviter_username:
+            match_result = add_match_info(viewer, dict(inviter))
+
+        invite_path = url_for("match_invite", inviter_username=inviter_username)
+        return render_template(
+            "match_invite.html",
+            inviter=inviter,
+            viewer=viewer,
+            match_result=match_result,
+            is_owner=viewer_username == inviter_username,
+            invite_url=url_for("match_invite", inviter_username=inviter_username, _external=True),
+            login_url=url_for("login", next=invite_path),
+            signup_url=url_for("signup", invite=inviter_username),
+        )
+
     @app.route("/api/signup/username-check")
     def api_signup_username_check():
         username = clean_single_line_text(request.args.get("username", ""), 50)
@@ -122,6 +167,7 @@ def register_auth_routes(app):
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        next_url = safe_next_path(request.values.get("next", ""))
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
             password = clean_single_line_text(request.form["password"], 100)
@@ -134,11 +180,15 @@ def register_auth_routes(app):
 
             if user:
                 session["username"] = user["username"]
-                return redirect(url_for("index"))
+                return redirect(next_url or url_for("index"))
 
-            return render_template("login.html", error="아이디 또는 비밀번호가 올바르지 않아요.")
+            return render_template(
+                "login.html",
+                error="아이디 또는 비밀번호가 올바르지 않아요.",
+                next_url=next_url,
+            )
 
-        return render_template("login.html")
+        return render_template("login.html", next_url=next_url)
 
     @app.route("/find-account", methods=["GET", "POST"])
     def find_account():
@@ -173,6 +223,13 @@ def register_auth_routes(app):
 
     @app.route("/signup", methods=["GET", "POST"])
     def signup():
+        invite_username = clean_single_line_text(
+            request.form.get("invite_username", "") or request.args.get("invite", ""),
+            50,
+        )
+        if invite_username and not username_exists(invite_username):
+            invite_username = ""
+
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
             password = clean_single_line_text(request.form["password"], 100)
@@ -197,6 +254,7 @@ def register_auth_routes(app):
                     error="필수 정보를 모두 입력해 주세요.",
                     start_section="account",
                     form_data=request.form,
+                    invite_username=invite_username,
                 )
 
             password_error = password_validation_error(password, password_confirmation)
@@ -206,6 +264,7 @@ def register_auth_routes(app):
                     error=password_error,
                     start_section="account",
                     form_data=request.form,
+                    invite_username=invite_username,
                 )
 
             if not username_is_available(username):
@@ -214,6 +273,7 @@ def register_auth_routes(app):
                     error="이미 사용 중인 아이디예요.",
                     start_section="account",
                     form_data=request.form,
+                    invite_username=invite_username,
                 )
 
             avatar_url = ""
@@ -228,6 +288,7 @@ def register_auth_routes(app):
                         error="프로필 사진은 이미지 파일만 사용할 수 있어요.",
                         start_section="avatar",
                         form_data=request.form,
+                        invite_username=invite_username,
                     )
 
             temp_profile = enrich_profile(
@@ -288,6 +349,8 @@ def register_auth_routes(app):
                     )
                     conn.commit()
                 session["username"] = username
+                if invite_username:
+                    return redirect(url_for("match_invite", inviter_username=invite_username))
                 return redirect(url_for("signup_complete"))
             except sqlite3.IntegrityError:
                 if avatar_path:
@@ -297,9 +360,10 @@ def register_auth_routes(app):
                     error="이미 사용 중인 아이디예요.",
                     start_section="account",
                     form_data=request.form,
+                    invite_username=invite_username,
                 )
 
-        return render_template("signup.html")
+        return render_template("signup.html", invite_username=invite_username)
 
     @app.route("/signup/complete")
     def signup_complete():
