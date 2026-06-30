@@ -45,7 +45,7 @@ def register_page_routes(app):
     def index():
         username = session.get("username")
         if not username:
-            return redirect(url_for("login"))
+            return redirect(url_for("welcome"))
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
         feed_page = get_feed_page(username, limit=20)

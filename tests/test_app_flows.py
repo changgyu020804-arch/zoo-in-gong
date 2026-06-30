@@ -52,11 +52,32 @@ def login_as(client, username):
         session["username"] = username
 
 
-def test_login_required_redirects_to_login(client):
+def test_first_visit_redirects_to_welcome(client):
     response = client.get("/")
 
     assert response.status_code == 302
-    assert "/login" in response.headers["Location"]
+    assert "/welcome" in response.headers["Location"]
+
+
+def test_welcome_offers_login_and_pet_mbti_paths(client):
+    response = client.get("/welcome")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'href="/login"' in html
+    assert 'href="/signup"' in html
+    assert "펫 MBTI 검사하기" in html
+    assert "로그인하기" in html
+
+
+def test_signup_starts_with_pet_mbti_before_account_fields(client):
+    response = client.get("/signup")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="signup-step persona-step is-active"' in html
+    assert html.index('data-section="persona"') < html.index('data-section="account"')
+    assert "펫 MBTI 1/" in html
 
 
 def test_text_responses_declare_utf8(client):

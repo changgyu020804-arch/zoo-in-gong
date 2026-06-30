@@ -4,6 +4,10 @@
 {% include 'partials/head.html' %}
 <body class="auth-page auth-page-fresh dog-world-page">
     <main class="auth-shell">
+        <a class="auth-back-link" href="{{ url_for('welcome') }}">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+            시작 화면
+        </a>
         <section class="auth-card login-card">
             <div class="brand-mark brand-large">Zoo-In-Gong</div>
             <p class="auth-kicker">강아지 세계로 돌아가는 문</p>

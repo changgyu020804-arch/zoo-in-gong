@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = 'Zoo-In-Gong | 시작하기' %}
+{% include 'partials/head.html' %}
+<body class="welcome-page dog-world-page">
+    <main class="welcome-shell">
+        <section class="welcome-brand" aria-labelledby="welcome-title">
+            <img
+                class="welcome-brand-image"
+                src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}"
+                alt="강아지 친구들이 함께 있는 Zoo-In-Gong"
+            >
+            <div class="welcome-brand-copy">
+                <p class="auth-kicker">강아지가 주인공이 되는 공간</p>
+                <h1 id="welcome-title">Zoo-In-Gong</h1>
+                <p>처음이라면 펫 MBTI부터, 이미 회원이라면 바로 로그인하세요.</p>
+            </div>
+        </section>
+
+        <section class="welcome-paths" aria-label="시작 방법 선택">
+            <a class="welcome-path welcome-path-primary" href="{{ url_for('signup') }}">
+                <span class="welcome-path-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
+                <span class="welcome-path-copy">
+                    <small>처음 왔어요</small>
+                    <strong>펫 MBTI 검사하기</strong>
+                    <span>12개 질문으로 성향을 알아보고 회원가입을 이어가요.</span>
+                </span>
+                <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
+            </a>
+
+            <a class="welcome-path" href="{{ url_for('login') }}">
+                <span class="welcome-path-icon" aria-hidden="true"><i class="fa-solid fa-right-to-bracket"></i></span>
+                <span class="welcome-path-copy">
+                    <small>이미 회원이에요</small>
+                    <strong>로그인하기</strong>
+                    <span>기존 계정으로 Zoo-In-Gong에 들어가요.</span>
+                </span>
+                <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
+            </a>
+        </section>
+    </main>
+</body>
+</html>

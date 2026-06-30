@@ -14,14 +14,159 @@
 
         {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
 
-        <form action="{{ url_for('signup') }}" method="post" enctype="multipart/form-data" class="signup-step-form" id="signupStepForm">
-            <section class="signup-step is-active" data-step="0">
-                <p class="step-label">입장권 만들기</p>
-                <h1>강아지 세계 아이디:</h1>
+        {% set saved = form_data | default({}) %}
+        <form
+            action="{{ url_for('signup') }}"
+            method="post"
+            enctype="multipart/form-data"
+            class="signup-step-form"
+            id="signupStepForm"
+            data-start-section="{{ start_section | default('') }}"
+        >
+            {% set persona_questions_per_step = 2 %}
+            {% set persona_step_count = ((persona_questions | length) + persona_questions_per_step - 1) // persona_questions_per_step %}
+            {% for persona_group in persona_questions | batch(persona_questions_per_step, none) %}
+            <section class="signup-step persona-step {% if loop.first %}is-active{% endif %}" data-step="{{ loop.index0 }}" data-section="persona">
+                <p class="step-label">펫 MBTI {{ loop.index }}/{{ persona_step_count }}</p>
+                <h1>우리 강아지는 어떤 타입일까요?</h1>
+                <p class="step-desc">가장 가까운 행동을 하나씩 골라주세요.</p>
+                <div class="persona-page-grid">
+                    {% for question in persona_group %}
+                    {% if question %}
+                    <fieldset class="persona-mini-card">
+                        <legend>{{ question.title }}</legend>
+                        <div class="persona-mini-options">
+                            {% for option in question.options %}
+                            <label class="persona-choice">
+                                <input
+                                    type="radio"
+                                    name="{{ question.key }}"
+                                    value="{{ option.value }}"
+                                    {% if saved.get(question.key) == option.value %}checked{% endif %}
+                                    required
+                                >
+                                <span>{{ option.label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <section class="signup-step mbti-bridge-step" data-step="{{ persona_step_count }}" data-section="mbti-complete">
+                <span class="mbti-bridge-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
+                <p class="step-label">펫 MBTI 검사 완료</p>
+                <h1>성향을 모두 확인했어요!</h1>
+                <p class="step-desc">이제 결과를 저장할 주인공 프로필과 계정을 만들어요. 가입을 마치면 12가지 페르소나 중 결과를 보여드릴게요.</p>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 1 }}" data-section="pet">
+                <p class="step-label">주인공 등록소</p>
+                <h1>우리 주인공 이름:</h1>
                 <div class="step-fields">
                     <label class="field-line">
+                        <span>이름</span>
+                        <input type="text" name="pet_name" value="{{ saved.get('pet_name', '') }}" placeholder="예: 콩이" required>
+                    </label>
+                    <fieldset class="field-line species-field">
+                        <legend>어떤 친구인가요?</legend>
+                        <div class="species-choice-grid">
+                            {% for species in ['푸들', '말티즈', '포메라니안', '시츄', '비숑', '치와와', '진돗개', '골든 리트리버', '웰시코기', '닥스훈트', '프렌치 불도그', '슈나우저', '보더콜리', '믹스견'] %}
+                            <label class="tag-choice">
+                                <input type="radio" name="pet_species" value="{{ species }}" {% if saved.get('pet_species') == species %}checked{% endif %} required>
+                                <span>{{ species }}</span>
+                            </label>
+                            {% endfor %}
+                            <label class="tag-choice">
+                                <input type="radio" name="pet_species" value="기타" {% if saved.get('pet_species') == '기타' %}checked{% endif %} required id="petSpeciesOtherRadio">
+                                <span>기타</span>
+                            </label>
+                        </div>
+                        <input type="text" name="pet_species_other" value="{{ saved.get('pet_species_other', '') }}" id="petSpeciesOtherInput" class="is-hidden" placeholder="직접 입력">
+                    </fieldset>
+                </div>
+            </section>
+
+            <section class="signup-step personality-step" data-step="{{ persona_step_count + 2 }}" data-section="personality">
+                <p class="step-label">성격 목걸이</p>
+                <h1>평소 성격도 알려주세요:</h1>
+                <p class="step-desc">가장 가까운 성격을 하나 골라주세요.</p>
+                <div class="personality-grid">
+                    {% set personality_options = ['장난꾸러기', '차분한', '애교많은', '호기심 많은', '용감한', '소심한', '활발한', '느긋한', '똑똑한', '먹보'] %}
+                    {% for personality in personality_options %}
+                    <label class="tag-choice">
+                        <input type="radio" name="personality" value="{{ personality }}" {% if saved.get('personality') == personality %}checked{% endif %} required>
+                        <span>{{ personality }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 3 }}" data-section="activity">
+                <p class="step-label">꼬리 흔드는 정도</p>
+                <h1>나이와 활동량:</h1>
+                <div class="step-fields raised-fields">
+                    <label class="field-line">
+                        <span>주인공 나이</span>
+                        <input type="number" name="pet_age" value="{{ saved.get('pet_age', '') }}" min="0" placeholder="0" required>
+                    </label>
+                    <label class="field-line">
+                        <span>활동량</span>
+                        <select name="activity_level">
+                            <option value="낮음" {% if saved.get('activity_level') == '낮음' %}selected{% endif %}>낮음</option>
+                            <option value="보통" {% if saved.get('activity_level', '보통') == '보통' %}selected{% endif %}>보통</option>
+                            <option value="높음" {% if saved.get('activity_level') == '높음' %}selected{% endif %}>높음</option>
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 4 }}" data-section="likes">
+                <p class="step-label">최애 간식함</p>
+                <h1>좋아하는 것:</h1>
+                <label class="field-line centered-field">
+                    <span>좋아하는 것</span>
+                    <input type="text" name="pet_likes" value="{{ saved.get('pet_likes', '') }}" placeholder="간식, 산책, 공놀이">
+                </label>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 5 }}" data-section="dislikes">
+                <p class="step-label">피하고 싶은 것</p>
+                <h1>싫어하는 것:</h1>
+                <label class="field-line centered-field">
+                    <span>싫어하는 것</span>
+                    <input type="text" name="pet_dislikes" value="{{ saved.get('pet_dislikes', '') }}" placeholder="목욕, 큰 소리, 병원">
+                </label>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 6 }}" data-section="avatar">
+                <p class="step-label">첫인상 등록소</p>
+                <h1>프로필 사진:</h1>
+                <p class="step-desc">지금 골라도 되고 나중에 프로필에서 바꿀 수 있어요.</p>
+                <label class="signup-avatar-picker" for="signupAvatarInput">
+                    <span class="signup-avatar-preview">
+                        <i class="fa-solid fa-dog" id="signupAvatarPlaceholder"></i>
+                        <img id="signupAvatarPreview" src="" alt="선택한 프로필 사진 미리보기" hidden>
+                    </span>
+                    <span class="signup-avatar-copy">
+                        <strong>강아지 사진 선택</strong>
+                        <small id="signupAvatarFileName">선택하지 않으면 기본 이미지가 사용돼요.</small>
+                    </span>
+                </label>
+                <input type="file" name="avatar" id="signupAvatarInput" class="signup-avatar-input" accept="image/*">
+                <button type="button" class="ghost-button full-width signup-avatar-remove is-hidden" id="signupAvatarRemove">선택한 사진 지우기</button>
+            </section>
+
+            <section class="signup-step" data-step="{{ persona_step_count + 7 }}" data-section="account">
+                <p class="step-label">결과 저장하기</p>
+                <h1>로그인 계정을 만들어요:</h1>
+                <div class="step-fields account-step-fields">
+                    <label class="field-line">
                         <span>아이디</span>
-                        <input type="text" name="username" id="signupUsername" placeholder="강아지 세계에서 쓸 아이디" autocomplete="username" maxlength="50" required>
+                        <input type="text" name="username" id="signupUsername" value="{{ saved.get('username', '') }}" placeholder="강아지 세계에서 쓸 아이디" autocomplete="username" maxlength="50" required>
                         <small class="signup-field-status" id="usernameStatus" aria-live="polite">입력하면 사용 가능 여부를 확인해요.</small>
                     </label>
                     <label class="field-line">
@@ -46,146 +191,17 @@
                     </label>
                     <label class="field-line">
                         <span>보호자 전화번호</span>
-                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                        <input type="tel" name="phone_number" value="{{ saved.get('phone_number', '') }}" placeholder="예: 010-1234-5678" autocomplete="tel" required>
                     </label>
                 </div>
             </section>
 
-            <section class="signup-step" data-step="1">
-                <p class="step-label">주인공 등록소</p>
-                <h1>우리 주인공 이름:</h1>
-                <div class="step-fields">
-                    <label class="field-line">
-                        <span>이름</span>
-                        <input type="text" name="pet_name" placeholder="예: 콩이" required>
-                    </label>
-                    <fieldset class="field-line species-field">
-                        <legend>어떤 친구인가요?</legend>
-                        <div class="species-choice-grid">
-                            {% for species in ['푸들', '말티즈', '포메라니안', '시츄', '비숑', '치와와', '진돗개', '골든 리트리버', '웰시코기', '닥스훈트', '프렌치 불도그', '슈나우저', '보더콜리', '믹스견'] %}
-                            <label class="tag-choice">
-                                <input type="radio" name="pet_species" value="{{ species }}" required>
-                                <span>{{ species }}</span>
-                            </label>
-                            {% endfor %}
-                            <label class="tag-choice">
-                                <input type="radio" name="pet_species" value="기타" required id="petSpeciesOtherRadio">
-                                <span>기타</span>
-                            </label>
-                        </div>
-                        <input type="text" name="pet_species_other" id="petSpeciesOtherInput" class="is-hidden" placeholder="직접 입력">
-                    </fieldset>
-                </div>
-            </section>
-
-            <section class="signup-step" data-step="2">
-                <p class="step-label">첫인상 등록소</p>
-                <h1>프로필 사진:</h1>
-                <p class="step-desc">지금 골라도 되고 나중에 프로필에서 바꿀 수 있어요.</p>
-                <label class="signup-avatar-picker" for="signupAvatarInput">
-                    <span class="signup-avatar-preview">
-                        <i class="fa-solid fa-dog" id="signupAvatarPlaceholder"></i>
-                        <img id="signupAvatarPreview" src="" alt="선택한 프로필 사진 미리보기" hidden>
-                    </span>
-                    <span class="signup-avatar-copy">
-                        <strong>강아지 사진 선택</strong>
-                        <small id="signupAvatarFileName">선택하지 않으면 기본 이미지가 사용돼요.</small>
-                    </span>
-                </label>
-                <input type="file" name="avatar" id="signupAvatarInput" class="signup-avatar-input" accept="image/*">
-                <button type="button" class="ghost-button full-width signup-avatar-remove is-hidden" id="signupAvatarRemove">선택한 사진 지우기</button>
-            </section>
-
-            <section class="signup-step" data-step="3">
-                <p class="step-label">꼬리 흔드는 정도</p>
-                <h1>나이와 활동량:</h1>
-                <div class="step-fields raised-fields">
-                    <label class="field-line">
-                        <span>주인공 나이</span>
-                        <input type="number" name="pet_age" min="0" placeholder="0" required>
-                    </label>
-                    <label class="field-line">
-                        <span>활동량</span>
-                        <select name="activity_level">
-                            <option value="낮음">낮음</option>
-                            <option value="보통" selected>보통</option>
-                            <option value="높음">높음</option>
-                        </select>
-                    </label>
-                </div>
-            </section>
-
-            <section class="signup-step" data-step="4">
-                <p class="step-label">최애 간식함</p>
-                <h1>좋아하는 것:</h1>
-                <label class="field-line centered-field">
-                    <span>좋아하는 것</span>
-                    <input type="text" name="pet_likes" placeholder="간식, 산책, 공놀이">
-                </label>
-            </section>
-
-            <section class="signup-step" data-step="5">
-                <p class="step-label">피하고 싶은 것</p>
-                <h1>싫어하는 것:</h1>
-                <label class="field-line centered-field">
-                    <span>싫어하는 것</span>
-                    <input type="text" name="pet_dislikes" placeholder="목욕, 큰 소리, 병원">
-                </label>
-            </section>
-
-            <section class="signup-step personality-step" data-step="6">
-                <p class="step-label">성격 목걸이</p>
-                <h1>주인공 성격:</h1>
-                <p class="step-desc">가장 가까운 성격을 하나 골라주세요.</p>
-                <div class="personality-grid">
-                    {% set personality_options = ['장난꾸러기', '차분한', '애교많은', '호기심 많은', '용감한', '소심한', '활발한', '느긋한', '똑똑한', '먹보'] %}
-                    {% for personality in personality_options %}
-                    <label class="tag-choice">
-                        <input type="radio" name="personality" value="{{ personality }}" required>
-                        <span>{{ personality }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </section>
-
-            {% set persona_questions_per_step = 2 %}
-            {% set persona_step_count = ((persona_questions | length) + persona_questions_per_step - 1) // persona_questions_per_step %}
-            {% for persona_group in persona_questions | batch(persona_questions_per_step, none) %}
-            <section class="signup-step persona-step" data-step="{{ loop.index + 6 }}">
-                <p class="step-label">멍BTI {{ loop.index }}</p>
-                <h1>주인공 페르소나:</h1>
-                <p class="step-desc">각 질문마다 가까운 쪽을 골라주세요.</p>
-                <div class="persona-page-grid">
-                    {% for question in persona_group %}
-                    {% if question %}
-                    <fieldset class="persona-mini-card">
-                        <legend>{{ question.title }}</legend>
-                        <div class="persona-mini-options">
-                            {% for option in question.options %}
-                            <label class="persona-choice">
-                                <input
-                                    type="radio"
-                                    name="{{ question.key }}"
-                                    value="{{ option.value }}"
-                                    required
-                                >
-                                <span>{{ option.label }}</span>
-                            </label>
-                            {% endfor %}
-                        </div>
-                    </fieldset>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </section>
-            {% endfor %}
-
-            <section class="signup-step" data-step="{{ persona_step_count + 7 }}">
+            <section class="signup-step" data-step="{{ persona_step_count + 8 }}" data-section="memo">
                 <p class="step-label">마지막 발도장</p>
                 <h1>주인공 메모:</h1>
                 <label class="field-line centered-field">
                     <span>성격 메모</span>
-                    <textarea name="owner_persona_note" rows="4" placeholder="예: 낯은 가리지만 친해지면 엄청 활발해요."></textarea>
+                    <textarea name="owner_persona_note" rows="4" placeholder="예: 낯은 가리지만 친해지면 엄청 활발해요.">{{ saved.get('owner_persona_note', '') }}</textarea>
                 </label>
             </section>
 
@@ -221,6 +237,8 @@
         const avatarPlaceholder = document.getElementById("signupAvatarPlaceholder");
         const avatarFileName = document.getElementById("signupAvatarFileName");
         const avatarRemove = document.getElementById("signupAvatarRemove");
+        const accountStepIndex = steps.findIndex((step) => step.dataset.section === "account");
+        const requestedStartSection = form.dataset.startSection || "";
         let usernameCheckTimer = 0;
         let usernameCheckRequest = 0;
         let usernameAvailable = false;
@@ -340,7 +358,7 @@
 
         async function validateCurrentStep() {
             clearStepErrors();
-            if (currentStep === 0) {
+            if (currentStep === accountStepIndex) {
                 syncPasswordStatus();
                 const available = usernameAvailable || await checkUsernameAvailability();
                 if (!available) {
@@ -395,7 +413,9 @@
                     const waitsForOtherInput = input.name === "pet_species" && syncSpeciesOtherInput();
                     if (stepIndex === currentStep && stepIndex < steps.length - 1) {
                         if (!waitsForOtherInput) {
-                            window.setTimeout(() => setStep(currentStep + 1), 180);
+                            window.setTimeout(async () => {
+                                if (await validateCurrentStep()) setStep(currentStep + 1);
+                            }, 180);
                         }
                     }
                 });
@@ -461,7 +481,11 @@
             }
         });
 
-        setStep(0);
+        syncSpeciesOtherInput();
+        const requestedStepIndex = requestedStartSection
+            ? steps.findIndex((step) => step.dataset.section === requestedStartSection)
+            : -1;
+        setStep(requestedStepIndex >= 0 ? requestedStepIndex : 0);
     </script>
 </body>
 </html>

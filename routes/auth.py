@@ -97,6 +97,10 @@ def reset_password_for_account(fields, new_password):
 
 
 def register_auth_routes(app):
+    @app.route("/welcome")
+    def welcome():
+        return render_template("welcome.html")
+
     @app.route("/api/signup/username-check")
     def api_signup_username_check():
         username = clean_single_line_text(request.args.get("username", ""), 50)
@@ -188,14 +192,29 @@ def register_auth_routes(app):
             persona_answers = extract_persona_answers(request.form)
 
             if not all([username, password, phone_number, pet_name, pet_species, personality]):
-                return render_template("signup.html", error="필수 정보를 모두 입력해 주세요.")
+                return render_template(
+                    "signup.html",
+                    error="필수 정보를 모두 입력해 주세요.",
+                    start_section="account",
+                    form_data=request.form,
+                )
 
             password_error = password_validation_error(password, password_confirmation)
             if password_error:
-                return render_template("signup.html", error=password_error)
+                return render_template(
+                    "signup.html",
+                    error=password_error,
+                    start_section="account",
+                    form_data=request.form,
+                )
 
             if not username_is_available(username):
-                return render_template("signup.html", error="이미 사용 중인 아이디예요.")
+                return render_template(
+                    "signup.html",
+                    error="이미 사용 중인 아이디예요.",
+                    start_section="account",
+                    form_data=request.form,
+                )
 
             avatar_url = ""
             avatar_path = None
@@ -204,7 +223,12 @@ def register_auth_routes(app):
                 avatar_path, avatar_url = store_uploaded_file(avatar_file, "signup_avatar")
                 if not is_supported_image_file(avatar_path):
                     avatar_path.unlink(missing_ok=True)
-                    return render_template("signup.html", error="프로필 사진은 이미지 파일만 사용할 수 있어요.")
+                    return render_template(
+                        "signup.html",
+                        error="프로필 사진은 이미지 파일만 사용할 수 있어요.",
+                        start_section="avatar",
+                        form_data=request.form,
+                    )
 
             temp_profile = enrich_profile(
                 {
@@ -268,7 +292,12 @@ def register_auth_routes(app):
             except sqlite3.IntegrityError:
                 if avatar_path:
                     avatar_path.unlink(missing_ok=True)
-                return render_template("signup.html", error="이미 사용 중인 아이디예요.")
+                return render_template(
+                    "signup.html",
+                    error="이미 사용 중인 아이디예요.",
+                    start_section="account",
+                    form_data=request.form,
+                )
 
         return render_template("signup.html")
 
@@ -283,7 +312,7 @@ def register_auth_routes(app):
     @app.route("/logout")
     def logout():
         session.pop("username", None)
-        return redirect(url_for("login"))
+        return redirect(url_for("welcome"))
 
     @app.route("/uploads/<path:filename>")
     def uploaded_file(filename):
