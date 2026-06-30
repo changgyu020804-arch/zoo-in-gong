@@ -432,7 +432,7 @@
                             <span>좋아요</span>
                         </button>
                         <button type="button" class="ghost-button reaction-cute js-detail-reaction" data-reaction="cute">
-                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <span class="reaction-emoji" aria-hidden="true">🥰</span>
                             <span>귀여워</span>
                             <strong data-detail-reaction-count="cute">0</strong>
                         </button>
@@ -481,7 +481,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=reactions-ranking-20260630a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=cute-emoji-20260630b"></script>
 </body>
 </html>
 

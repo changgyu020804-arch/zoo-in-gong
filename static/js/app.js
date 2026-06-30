@@ -372,7 +372,7 @@
         likeCount.textContent = post.likes || 0;
         like.append(createIcon("fa-solid fa-heart"), likeCount);
 
-        const createReactionButton = (type, label, iconClass) => {
+        const createReactionButton = (type, label, iconValue) => {
             const reacted = Boolean(post[`${type}_by_viewer`]);
             const button = document.createElement("button");
             button.type = "button";
@@ -384,10 +384,19 @@
             const count = document.createElement("strong");
             count.dataset.reactionCountFor = `${type}:${post.id}`;
             count.textContent = post[`${type}_count`] || 0;
-            button.append(createIcon(iconClass), count);
+            if (iconValue.startsWith("fa-")) {
+                button.append(createIcon(iconValue));
+            } else {
+                const emoji = document.createElement("span");
+                emoji.className = "reaction-emoji";
+                emoji.setAttribute("aria-hidden", "true");
+                emoji.textContent = iconValue;
+                button.appendChild(emoji);
+            }
+            button.appendChild(count);
             return button;
         };
-        const cute = createReactionButton("cute", "귀여워", "fa-solid fa-face-grin-hearts");
+        const cute = createReactionButton("cute", "귀여워", "🥰");
         const funny = createReactionButton("funny", "웃겨", "fa-solid fa-face-laugh-squint");
 
         const comment = document.createElement("button");
@@ -3709,8 +3718,13 @@
                 if (list.tagName === "UL") node.className = `notification-item ${item.is_read ? "" : "is-unread"}`;
 
                 const title = document.createElement("strong");
-                const icon = document.createElement("i");
-                icon.className = notificationIcon(item.type);
+                const icon = document.createElement(item.type === "cute" ? "span" : "i");
+                if (item.type === "cute") {
+                    icon.className = "reaction-emoji";
+                    icon.textContent = "🥰";
+                } else {
+                    icon.className = notificationIcon(item.type);
+                }
                 title.append(icon, ` ${item.title || "새 알림"}`);
 
                 const body = document.createElement(list.tagName === "UL" ? "span" : "p");

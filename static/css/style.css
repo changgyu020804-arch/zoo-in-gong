@@ -1176,6 +1176,15 @@ textarea:focus {
     font-size: 1.08rem;
 }
 
+.reaction-emoji {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+    font-size: 1.2em;
+    line-height: 1;
+}
+
 .dog-action-button:hover,
 .dog-action-button.is-liked {
     color: var(--accent-strong);

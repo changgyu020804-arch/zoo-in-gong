@@ -297,7 +297,7 @@
                             <strong data-like-count-for="{{ post.id }}" id="like-count-{{ post.id }}">{{ post.likes }}</strong>
                         </button>
                         <button type="button" class="dog-action-button reaction-button reaction-cute js-reaction-button {% if post.cute_by_viewer %}is-reacted{% endif %}" data-post-id="{{ post.id }}" data-reaction="cute" data-reacted="{{ 'true' if post.cute_by_viewer else 'false' }}" aria-label="귀여워">
-                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <span class="reaction-emoji" aria-hidden="true">🥰</span>
                             <strong data-reaction-count-for="cute:{{ post.id }}">{{ post.cute_count }}</strong>
                         </button>
                         <button type="button" class="dog-action-button reaction-button reaction-funny js-reaction-button {% if post.funny_by_viewer %}is-reacted{% endif %}" data-post-id="{{ post.id }}" data-reaction="funny" data-reacted="{{ 'true' if post.funny_by_viewer else 'false' }}" aria-label="웃겨">
@@ -433,11 +433,15 @@
                 <div class="section-head compact">
                     <h3>핫한 댕댕이</h3>
                 </div>
-                {% set ranking_modes = [('likes', '좋아요', 'fa-heart'), ('cute', '귀여워', 'fa-face-grin-hearts'), ('funny', '웃겨', 'fa-face-laugh-squint')] %}
+                {% set ranking_modes = [('likes', '좋아요', 'fa-heart'), ('cute', '귀여워', '🥰'), ('funny', '웃겨', 'fa-face-laugh-squint')] %}
                 <div class="ranking-tabs" role="tablist" aria-label="댕댕이 랭킹 종류">
                     {% for key, label, icon in ranking_modes %}
                     <button type="button" class="ranking-tab js-ranking-tab {% if loop.first %}is-active{% endif %}" data-ranking-tab="{{ key }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                        {% if icon == '🥰' %}
+                        <span class="reaction-emoji" aria-hidden="true">{{ icon }}</span>
+                        {% else %}
                         <i class="fa-solid {{ icon }}" aria-hidden="true"></i>
+                        {% endif %}
                         <span>{{ label }}</span>
                     </button>
                     {% endfor %}
@@ -705,7 +709,7 @@
                             <span>좋아요</span>
                         </button>
                         <button type="button" class="ghost-button reaction-cute js-detail-reaction" data-reaction="cute">
-                            <i class="fa-solid fa-face-grin-hearts"></i>
+                            <span class="reaction-emoji" aria-hidden="true">🥰</span>
                             <span>귀여워</span>
                             <strong data-detail-reaction-count="cute">0</strong>
                         </button>
@@ -731,7 +735,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=reactions-ranking-20260630a"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=cute-emoji-20260630b"></script>
 </body>
 </html>
 
