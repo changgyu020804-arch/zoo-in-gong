@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Zoo-In-Gong">
+  <rect width="64" height="64" rx="16" fill="#fff4e9"/>
+  <circle cx="32" cy="34" r="21" fill="#f3b36d"/>
+  <path d="M17 29 11 13c8 1 13 5 16 10z" fill="#b96b3f"/>
+  <path d="m47 29 6-16c-8 1-13 5-16 10z" fill="#b96b3f"/>
+  <ellipse cx="24" cy="32" rx="3" ry="4" fill="#342820"/>
+  <ellipse cx="40" cy="32" rx="3" ry="4" fill="#342820"/>
+  <ellipse cx="32" cy="40" rx="5" ry="4" fill="#342820"/>
+  <path d="M25 46c4 4 10 4 14 0" fill="none" stroke="#342820" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 43v4" stroke="#342820" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="18" cy="39" r="4" fill="#f38c91" opacity=".7"/>
+  <circle cx="46" cy="39" r="4" fill="#f38c91" opacity=".7"/>
+</svg>

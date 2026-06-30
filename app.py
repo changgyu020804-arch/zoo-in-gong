@@ -5,7 +5,7 @@ import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from flask import Flask, g, request, session
+from flask import Flask, g, request, send_from_directory, session
 
 from config import BASE_DIR, UPLOAD_FOLDER
 import db
@@ -146,6 +146,14 @@ def create_app(database_path=None, upload_folder=None, testing=False):
             "persona_questions": PERSONA_QUESTIONS,
             "persona_options": persona_options,
         }
+
+    @app.route("/favicon.ico")
+    def favicon():
+        return send_from_directory(
+            Path(app.static_folder) / "images",
+            "favicon.svg",
+            mimetype="image/svg+xml",
+        )
 
     @app.before_request
     def record_request_start():

@@ -89,6 +89,16 @@ def test_text_responses_declare_utf8(client):
     assert client.application.json.ensure_ascii is False
 
 
+def test_favicon_is_available_and_linked(client):
+    favicon = client.get("/favicon.ico")
+    login_page = client.get("/login").get_data(as_text=True)
+
+    assert favicon.status_code == 200
+    assert favicon.mimetype == "image/svg+xml"
+    assert 'rel="icon"' in login_page
+    assert "/static/images/favicon.svg" in login_page
+
+
 def test_signup_creates_user_and_starts_session(client):
     response = client.post(
         "/signup",
