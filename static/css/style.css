@@ -2901,6 +2901,66 @@ button.grid-post {
     padding: 0 14px;
 }
 
+.signup-progress {
+    min-width: 0;
+    display: grid;
+    align-items: center;
+}
+
+.mbti-paw-progress {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    color: #ead9d1;
+}
+
+.mbti-paw-progress[hidden],
+.step-meter[hidden] {
+    display: none;
+}
+
+.mbti-paw {
+    justify-self: center;
+    font-size: 0.82rem;
+    transform: scale(0.86) rotate(-8deg);
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.mbti-paw:nth-child(even) {
+    transform: scale(0.86) rotate(8deg);
+}
+
+.mbti-paw.is-filled {
+    color: #e9654f;
+    transform: scale(1) rotate(-8deg);
+}
+
+.mbti-paw:nth-child(even).is-filled {
+    transform: scale(1) rotate(8deg);
+}
+
+.mbti-paw.is-current {
+    animation: mbtiPawFill 0.42s ease-out;
+}
+
+@keyframes mbtiPawFill {
+    0% { transform: scale(0.72) rotate(-8deg); }
+    58% { transform: scale(1.24) rotate(4deg); }
+    100% { transform: scale(1) rotate(-8deg); }
+}
+
+.mbti-paw:nth-child(even).is-current {
+    animation-name: mbtiPawFillEven;
+}
+
+@keyframes mbtiPawFillEven {
+    0% { transform: scale(0.72) rotate(8deg); }
+    58% { transform: scale(1.24) rotate(-4deg); }
+    100% { transform: scale(1) rotate(8deg); }
+}
+
 .step-back {
     width: 36px;
     height: 36px;
@@ -2914,6 +2974,7 @@ button.grid-post {
 }
 
 .step-meter {
+    width: 100%;
     height: 3px;
     overflow: hidden;
     border-radius: 999px;
@@ -2926,6 +2987,12 @@ button.grid-post {
     height: 100%;
     background: var(--accent);
     transition: width 0.22s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mbti-paw.is-current {
+        animation: none;
+    }
 }
 
 .skip-link {

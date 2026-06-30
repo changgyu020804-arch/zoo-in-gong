@@ -3,12 +3,29 @@
 {% set page_title = 'Zoo-In-Gong | 강아지 세계 입장권' %}
 {% include 'partials/head.html' %}
 <body class="auth-page signup-flow-page dog-world-page">
+    {% set persona_questions_per_step = 2 %}
+    {% set persona_step_count = ((persona_questions | length) + persona_questions_per_step - 1) // persona_questions_per_step %}
     <main class="signup-phone">
         <header class="signup-topbar">
             <button type="button" class="step-back" aria-label="이전 단계">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <div class="step-meter" aria-hidden="true"><span></span></div>
+            <div class="signup-progress">
+                <div
+                    class="mbti-paw-progress"
+                    id="mbtiPawProgress"
+                    role="progressbar"
+                    aria-label="펫 MBTI 진행률"
+                    aria-valuemin="1"
+                    aria-valuemax="{{ persona_step_count }}"
+                    aria-valuenow="1"
+                >
+                    {% for _ in range(persona_step_count) %}
+                    <i class="fa-solid fa-paw mbti-paw" aria-hidden="true"></i>
+                    {% endfor %}
+                </div>
+                <div class="step-meter" aria-hidden="true" hidden><span></span></div>
+            </div>
             <a href="{{ url_for('login') }}" class="skip-link">로그인</a>
         </header>
 
@@ -23,8 +40,6 @@
             id="signupStepForm"
             data-start-section="{{ start_section | default('') }}"
         >
-            {% set persona_questions_per_step = 2 %}
-            {% set persona_step_count = ((persona_questions | length) + persona_questions_per_step - 1) // persona_questions_per_step %}
             {% for persona_group in persona_questions | batch(persona_questions_per_step, none) %}
             <section class="signup-step persona-step {% if loop.first %}is-active{% endif %}" data-step="{{ loop.index0 }}" data-section="persona">
                 <p class="step-label">펫 MBTI {{ loop.index }}/{{ persona_step_count }}</p>
@@ -224,6 +239,9 @@
         const totalStepLabel = document.getElementById("totalStep");
         const validationMessage = document.getElementById("stepValidationMessage");
         const meter = document.querySelector(".step-meter span");
+        const meterContainer = document.querySelector(".step-meter");
+        const pawProgress = document.getElementById("mbtiPawProgress");
+        const pawSteps = Array.from(document.querySelectorAll(".mbti-paw"));
         const speciesOtherRadio = document.getElementById("petSpeciesOtherRadio");
         const speciesOtherInput = document.getElementById("petSpeciesOtherInput");
         const usernameInput = document.getElementById("signupUsername");
@@ -296,6 +314,28 @@
             submitButton.classList.toggle("is-hidden", currentStep !== steps.length - 1);
             currentStepLabel.textContent = currentStep + 1;
             meter.style.width = `${((currentStep + 1) / steps.length) * 100}%`;
+
+            const activeSection = steps[currentStep].dataset.section || "";
+            const isMbtiStep = activeSection === "persona" || activeSection === "mbti-complete";
+            const filledPaws = activeSection === "persona"
+                ? Math.min(currentStep + 1, pawSteps.length)
+                : pawSteps.length;
+            pawProgress.hidden = !isMbtiStep;
+            meterContainer.hidden = isMbtiStep;
+            pawSteps.forEach((paw, pawIndex) => {
+                paw.classList.toggle("is-filled", pawIndex < filledPaws);
+                paw.classList.toggle(
+                    "is-current",
+                    activeSection === "persona" && pawIndex === filledPaws - 1
+                );
+            });
+            pawProgress.setAttribute("aria-valuenow", String(filledPaws));
+            pawProgress.setAttribute(
+                "aria-valuetext",
+                activeSection === "mbti-complete"
+                    ? "펫 MBTI 검사 완료"
+                    : `${filledPaws}단계 중 ${pawSteps.length}단계`
+            );
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
 

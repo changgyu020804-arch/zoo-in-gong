@@ -78,6 +78,7 @@ def test_signup_starts_with_pet_mbti_before_account_fields(client):
     assert 'class="signup-step persona-step is-active"' in html
     assert html.index('data-section="persona"') < html.index('data-section="account"')
     assert "펫 MBTI 1/" in html
+    assert html.count('class="fa-solid fa-paw mbti-paw"') == 6
 
 
 def test_text_responses_declare_utf8(client):
