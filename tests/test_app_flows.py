@@ -334,9 +334,9 @@ def test_find_account_page_finds_username_and_resets_password(client):
         "/find-account",
         data={
             "action": "find_username",
-            "pet_name": "나리",
-            "pet_species": "강아지",
-            "phone_number": "010-1234-5678",
+            "pet_name": " 나리 ",
+            "pet_species": " 강아지 ",
+            "phone_number": "01012345678",
         },
     )
     html = response.get_data(as_text=True)
@@ -348,10 +348,10 @@ def test_find_account_page_finds_username_and_resets_password(client):
         "/find-account",
         data={
             "action": "reset_password",
-            "username": "nari",
+            "username": "NARI",
             "pet_name": "나리",
             "pet_species": "강아지",
-            "phone_number": "010-1234-5678",
+            "phone_number": "(010) 1234-5678",
             "new_password": "newpw",
         },
     )
@@ -366,6 +366,28 @@ def test_find_account_page_finds_username_and_resets_password(client):
     )
     assert login_response.status_code == 302
     assert login_response.headers["Location"].endswith("/")
+
+
+def test_find_account_keeps_safe_fields_after_failed_lookup(client):
+    response = client.post(
+        "/find-account",
+        data={
+            "action": "reset_password",
+            "username": "unknown-user",
+            "pet_name": "루비",
+            "pet_species": "말티푸",
+            "phone_number": "01099998888",
+            "new_password": "newpassword1",
+        },
+    )
+
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "입력한 정보와 일치하는 계정을 찾지 못했어요." in html
+    assert 'value="unknown-user"' in html
+    assert 'value="루비"' in html
+    assert 'value="말티푸"' in html
+    assert 'value="01099998888"' in html
 
 
 def test_upload_creates_post_with_caption(client):

@@ -1,4 +1,6 @@
 import sqlite3
+import re
+import unicodedata
 from urllib.parse import urlsplit
 
 from flask import abort, jsonify, redirect, render_template, request, send_from_directory, session, url_for
@@ -19,6 +21,8 @@ def find_account_context():
         "password_message": "",
         "username_error": "",
         "password_error": "",
+        "username_fields": {},
+        "password_fields": {},
     }
 
 
@@ -82,36 +86,49 @@ def account_lookup_values(fields):
     return (fields["pet_name"], fields["pet_species"], fields["phone_number"])
 
 
+def normalize_account_text(value):
+    text = unicodedata.normalize("NFKC", str(value or ""))
+    return " ".join(text.split()).casefold()
+
+
+def normalize_phone_number(value):
+    return re.sub(r"\D", "", str(value or ""))
+
+
+def account_fields_match(row, fields, include_username=False):
+    if include_username and normalize_account_text(row["username"]) != normalize_account_text(fields["username"]):
+        return False
+    return (
+        normalize_account_text(row["pet_name"]) == normalize_account_text(fields["pet_name"])
+        and normalize_account_text(row["pet_species"]) == normalize_account_text(fields["pet_species"])
+        and normalize_phone_number(row["phone_number"]) == normalize_phone_number(fields["phone_number"])
+    )
+
+
 def find_usernames_by_account_fields(fields):
     with get_db_connection() as conn:
         rows = conn.execute(
             """
-            SELECT username
+            SELECT username, pet_name, pet_species, phone_number
             FROM users
-            WHERE pet_name = ? AND pet_species = ? AND phone_number = ?
             ORDER BY username
-            """,
-            account_lookup_values(fields),
+            """
         ).fetchall()
-    return [row["username"] for row in rows]
+    return [row["username"] for row in rows if account_fields_match(row, fields)]
 
 
 def reset_password_for_account(fields, new_password):
     with get_db_connection() as conn:
-        cursor = conn.execute(
+        rows = conn.execute(
             """
-            UPDATE users
-            SET password = ?
-            WHERE username = ? AND pet_name = ? AND pet_species = ? AND phone_number = ?
+            SELECT id, username, pet_name, pet_species, phone_number
+            FROM users
             """,
-            (
-                new_password,
-                fields["username"],
-                fields["pet_name"],
-                fields["pet_species"],
-                fields["phone_number"],
-            ),
-        )
+        ).fetchall()
+        matches = [row for row in rows if account_fields_match(row, fields, include_username=True)]
+        if len(matches) != 1:
+            return False
+        cursor = conn.execute("UPDATE users SET password = ? WHERE id = ?", (new_password, matches[0]["id"]))
         conn.commit()
     return cursor.rowcount > 0
 
@@ -193,6 +210,9 @@ def register_auth_routes(app):
     @app.route("/find-account", methods=["GET", "POST"])
     def find_account():
         context = find_account_context()
+        requested_mode = clean_single_line_text(request.args.get("mode", ""), 40)
+        if requested_mode in {"find_username", "reset_password"}:
+            context["mode"] = requested_mode
 
         if request.method == "POST":
             action = clean_single_line_text(request.form.get("action", ""), 40)
@@ -200,6 +220,7 @@ def register_auth_routes(app):
 
             if action == "find_username":
                 fields = clean_account_lookup_form(request.form)
+                context["username_fields"] = fields
                 if not all(account_lookup_values(fields)):
                     context["username_error"] = "주인공 이름, 종류, 전화번호를 모두 입력해 주세요."
                 else:
@@ -211,6 +232,7 @@ def register_auth_routes(app):
 
             elif action == "reset_password":
                 fields = clean_account_lookup_form(request.form)
+                context["password_fields"] = fields
                 new_password = clean_single_line_text(request.form.get("new_password", ""), 100)
                 if not all([fields["username"], *account_lookup_values(fields), new_password]):
                     context["password_error"] = "아이디, 주인공 정보, 전화번호, 새 비밀번호를 모두 입력해 주세요."

@@ -27,15 +27,15 @@
                     <input type="hidden" name="action" value="find_username">
                     <label class="field-line">
                         <span>주인공 이름</span>
-                        <input type="text" name="pet_name" placeholder="예: 콩이" required>
+                        <input type="text" name="pet_name" value="{{ username_fields.get('pet_name', '') | e }}" placeholder="예: 콩이" required>
                     </label>
                     <label class="field-line">
-                        <span>어떤 친구인가요?</span>
-                        <input type="text" name="pet_species" placeholder="예: 강아지" required>
+                        <span>가입할 때 선택한 견종</span>
+                        <input type="text" name="pet_species" value="{{ username_fields.get('pet_species', '') | e }}" placeholder="예: 푸들, 말티즈" required>
                     </label>
                     <label class="field-line">
                         <span>보호자 전화번호</span>
-                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                        <input type="tel" name="phone_number" value="{{ username_fields.get('phone_number', '') | e }}" placeholder="하이픈 없이 입력해도 돼요" autocomplete="tel" required>
                     </label>
                     <button type="submit" class="primary-button full-width">아이디 찾기</button>
                 </form>
@@ -49,19 +49,19 @@
                     <input type="hidden" name="action" value="reset_password">
                     <label class="field-line">
                         <span>아이디</span>
-                        <input type="text" name="username" placeholder="아이디를 입력하세요" autocomplete="username" required>
+                        <input type="text" name="username" value="{{ password_fields.get('username', '') | e }}" placeholder="아이디를 입력하세요" autocomplete="username" required>
                     </label>
                     <label class="field-line">
                         <span>주인공 이름</span>
-                        <input type="text" name="pet_name" placeholder="예: 콩이" required>
+                        <input type="text" name="pet_name" value="{{ password_fields.get('pet_name', '') | e }}" placeholder="예: 콩이" required>
                     </label>
                     <label class="field-line">
-                        <span>어떤 친구인가요?</span>
-                        <input type="text" name="pet_species" placeholder="예: 강아지" required>
+                        <span>가입할 때 선택한 견종</span>
+                        <input type="text" name="pet_species" value="{{ password_fields.get('pet_species', '') | e }}" placeholder="예: 푸들, 말티즈" required>
                     </label>
                     <label class="field-line">
                         <span>보호자 전화번호</span>
-                        <input type="tel" name="phone_number" placeholder="예: 010-1234-5678" autocomplete="tel" required>
+                        <input type="tel" name="phone_number" value="{{ password_fields.get('phone_number', '') | e }}" placeholder="하이픈 없이 입력해도 돼요" autocomplete="tel" required>
                     </label>
                     <label class="field-line">
                         <span>새 비밀번호</span>
