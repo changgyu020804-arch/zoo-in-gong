@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set page_title = 'Zoo-In-Gong | 댕댕이 피드' %}
+{% include 'partials/head.html' %}
+<body class="guest-feed-page" data-page="guest-feed">
+    <div class="app-shell guest-app-shell">
+        <aside class="sidebar guest-sidebar">
+            <a href="{{ url_for('index') }}" class="brand-mark brand-image-mark" aria-label="Zoo-In-Gong 홈">
+                <img class="brand-logo-image" src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+            </a>
+            <nav class="sidebar-nav" aria-label="게스트 메뉴">
+                <a class="nav-button is-active" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i><span>피드</span></a>
+                <button type="button" class="nav-button js-guest-gate" data-gate-reason="검색하려면 로그인이 필요해요."><i class="fa-solid fa-magnifying-glass"></i><span>검색</span></button>
+                <button type="button" class="nav-button js-guest-gate" data-gate-reason="게시물을 올리려면 로그인이 필요해요."><i class="fa-regular fa-square-plus"></i><span>새 게시물</span></button>
+                <button type="button" class="nav-button js-guest-gate" data-gate-reason="친구를 만나려면 로그인이 필요해요."><i class="fa-solid fa-user-group"></i><span>친구</span></button>
+                <button type="button" class="nav-button js-guest-gate" data-gate-reason="내 프로필을 만들려면 로그인이 필요해요."><i class="fa-regular fa-circle-user"></i><span>프로필</span></button>
+            </nav>
+            <div class="guest-sidebar-actions">
+                <a class="primary-button" href="{{ url_for('signup') }}">펫 MBTI 검사</a>
+                <a class="ghost-button" href="{{ url_for('login') }}">로그인</a>
+            </div>
+        </aside>
+
+        <main class="content-column guest-content">
+            <header class="guest-mobile-topbar">
+                <a href="{{ url_for('index') }}" class="brand-mark brand-image-mark" aria-label="Zoo-In-Gong 홈">
+                    <img class="brand-logo-image" src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+                </a>
+                <a class="ghost-button guest-login-button" href="{{ url_for('login') }}">로그인</a>
+            </header>
+
+            <section class="guest-feed-intro" aria-labelledby="guest-feed-title">
+                <div>
+                    <p class="eyebrow">먼저 구경해 보세요</p>
+                    <h1 id="guest-feed-title">오늘의 댕댕이 피드</h1>
+                    <p>마음에 드는 친구를 발견하면 반응을 남기고 내 강아지도 소개해 보세요.</p>
+                </div>
+                <a class="primary-button guest-intro-cta" href="{{ url_for('signup') }}">
+                    <i class="fa-solid fa-paw" aria-hidden="true"></i>
+                    펫 MBTI로 시작하기
+                </a>
+            </section>
+
+            <section class="feed-list" id="guest-feed-list" aria-label="공개 게시물">
+                {% for post in posts %}
+                <article class="post-card dog-social-card guest-post-card" id="post-{{ post.id }}">
+                    <div class="post-header">
+                        <button type="button" class="post-author guest-profile-button js-guest-gate" data-gate-reason="{{ post.pet_name }}의 프로필을 보려면 로그인이 필요해요.">
+                            <span class="avatar avatar-small avatar-ring">
+                                {% if post.display_avatar_url %}
+                                <img src="{{ post.display_avatar_url }}" alt="{{ post.pet_name }}">
+                                {% else %}
+                                <span>{{ post.initial }}</span>
+                                {% endif %}
+                            </span>
+                            <span class="guest-author-copy">
+                                <strong>{{ post.pet_name }}</strong>
+                                <span class="meta-line">{{ post.time_label }} · {{ post.persona }}</span>
+                            </span>
+                        </button>
+                        <div class="post-header-tools">
+                            <button type="button" class="follow-button js-guest-gate" data-gate-reason="{{ post.pet_name }}를 팔로우하려면 로그인이 필요해요.">팔로우</button>
+                            <span class="tag-pill">{{ post.pet_species }}</span>
+                        </div>
+                    </div>
+
+                    <div class="post-image-wrap guest-post-image">
+                        <img class="post-image" src="{{ post.image_url }}" alt="{{ post.pet_name }} 사진" loading="lazy" decoding="async">
+                    </div>
+
+                    <div class="post-actions dog-social-actions">
+                        <button type="button" class="dog-action-button js-guest-gate" data-gate-reason="좋아요를 남기려면 로그인이 필요해요." aria-label="좋아요">
+                            <i class="fa-solid fa-heart"></i><strong>{{ post.likes }}</strong>
+                        </button>
+                        <button type="button" class="dog-action-button reaction-button reaction-cute js-guest-gate" data-gate-reason="귀여워 반응을 남기려면 로그인이 필요해요." aria-label="귀여워">
+                            <span class="reaction-emoji" aria-hidden="true">🥰</span><strong>{{ post.cute_count }}</strong>
+                        </button>
+                        <button type="button" class="dog-action-button reaction-button reaction-funny js-guest-gate" data-gate-reason="웃겨 반응을 남기려면 로그인이 필요해요." aria-label="웃겨">
+                            <i class="fa-solid fa-face-laugh-squint"></i><strong>{{ post.funny_count }}</strong>
+                        </button>
+                        <button type="button" class="dog-action-button js-guest-gate" data-gate-reason="댓글을 남기려면 로그인이 필요해요." aria-label="댓글">
+                            <i class="fa-regular fa-comment"></i><strong>{{ post.comment_count }}</strong>
+                        </button>
+                        <button type="button" class="icon-button save-button js-guest-gate" data-gate-reason="게시물을 저장하려면 로그인이 필요해요." aria-label="저장">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="post-copy">
+                        <p class="caption"><strong>{{ post.pet_name }}:</strong> {{ post.caption | safe }}</p>
+                    </div>
+                    <button type="button" class="guest-comment-prompt js-guest-gate" data-gate-reason="댓글을 남기려면 로그인이 필요해요.">
+                        <i class="fa-regular fa-comment" aria-hidden="true"></i>
+                        댓글을 남겨보세요
+                    </button>
+                </article>
+                {% else %}
+                <div class="guest-empty-feed">
+                    <i class="fa-solid fa-paw" aria-hidden="true"></i>
+                    <strong>아직 공개된 게시물이 없어요.</strong>
+                </div>
+                {% endfor %}
+            </section>
+
+            <div
+                class="feed-pagination guest-feed-pagination"
+                id="guest-feed-pagination"
+                data-has-more="{{ 'true' if feed_has_more else 'false' }}"
+                data-before-created-at="{{ feed_next_cursor.created_at if feed_next_cursor else '' }}"
+                data-before-id="{{ feed_next_cursor.id if feed_next_cursor else '' }}"
+                {% if not feed_has_more %}hidden{% endif %}
+            >
+                <button type="button" class="ghost-button" id="guest-feed-load-more">게시물 더 보기</button>
+                <span class="feed-pagination-status" aria-live="polite"></span>
+            </div>
+        </main>
+
+        <aside class="right-rail guest-right-rail">
+            <section class="guest-join-panel">
+                <p class="eyebrow">내 강아지도 주인공으로</p>
+                <h2>1분 만에 시작해요</h2>
+                <p>펫 MBTI로 성향을 찾고 사진 한 장으로 첫 게시물을 만들어 보세요.</p>
+                <a class="primary-button" href="{{ url_for('signup') }}">무료로 시작하기</a>
+                <a class="guest-existing-link" href="{{ url_for('login') }}">이미 계정이 있어요</a>
+            </section>
+
+            <section class="panel-card guest-ranking-panel">
+                <div class="section-head compact"><h3>핫한 댕댕이</h3></div>
+                {% set ranking_modes = [('likes', '좋아요', 'fa-heart'), ('cute', '귀여워', '🥰'), ('funny', '웃겨', 'fa-face-laugh-squint')] %}
+                <div class="ranking-tabs" role="tablist" aria-label="댕댕이 랭킹 종류">
+                    {% for key, label, icon in ranking_modes %}
+                    <button type="button" class="ranking-tab js-guest-ranking-tab {% if loop.first %}is-active{% endif %}" data-ranking-tab="{{ key }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                        {% if icon == '🥰' %}<span class="reaction-emoji" aria-hidden="true">{{ icon }}</span>{% else %}<i class="fa-solid {{ icon }}" aria-hidden="true"></i>{% endif %}
+                        <span>{{ label }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% for key, label, icon in ranking_modes %}
+                <div class="ranking-list js-guest-ranking-panel" data-ranking-panel="{{ key }}" {% if not loop.first %}hidden{% endif %}>
+                    {% for item in reaction_rankings[key][:3] %}
+                    <button type="button" class="ranking-item rank-card-{{ item.rank }} js-guest-gate" data-gate-reason="{{ item.pet_name }}의 프로필을 보려면 로그인이 필요해요.">
+                        <span class="ranking-left">
+                            <span class="ranking-badge rank-{{ item.rank }}">{% if item.rank == 1 %}<i class="fa-solid fa-crown"></i>{% else %}{{ item.rank }}{% endif %}</span>
+                            <span class="avatar avatar-small">
+                                {% if item.display_avatar_url %}<img src="{{ item.display_avatar_url }}" alt="{{ item.pet_name }}">{% else %}<span>{{ item.initial }}</span>{% endif %}
+                            </span>
+                            <span class="ranking-copy">
+                                <span class="ranking-title-row"><strong>{{ item.pet_name }}</strong><span class="ranking-like-chip">{{ item.reaction_count }} {{ label }}</span></span>
+                                <small>{{ item.persona }}</small>
+                            </span>
+                        </span>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </section>
+        </aside>
+    </div>
+
+    <nav class="mobile-nav guest-mobile-nav" aria-label="게스트 하단 메뉴">
+        <a class="mobile-nav-button is-active" href="{{ url_for('index') }}" aria-label="피드"><i class="fa-solid fa-house"></i></a>
+        <button type="button" class="mobile-nav-button js-guest-gate" data-gate-reason="검색하려면 로그인이 필요해요." aria-label="검색"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button type="button" class="mobile-nav-button js-guest-gate" data-gate-reason="게시물을 올리려면 로그인이 필요해요." aria-label="새 게시물"><i class="fa-regular fa-square-plus"></i></button>
+        <button type="button" class="mobile-nav-button js-guest-gate" data-gate-reason="친구를 만나려면 로그인이 필요해요." aria-label="친구"><i class="fa-solid fa-user-group"></i></button>
+        <button type="button" class="mobile-nav-button js-guest-gate" data-gate-reason="내 프로필을 만들려면 로그인이 필요해요." aria-label="프로필"><i class="fa-regular fa-circle-user"></i></button>
+    </nav>
+
+    <div class="overlay-panel guest-gate-panel" id="guest-gate-panel" aria-hidden="true">
+        <div class="panel-dialog compact-dialog guest-gate-dialog" role="dialog" aria-modal="true" aria-labelledby="guest-gate-title">
+            <button type="button" class="icon-button guest-gate-close" id="guest-gate-close" aria-label="닫기"><i class="fa-solid fa-xmark"></i></button>
+            <span class="guest-gate-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
+            <p class="eyebrow">조금만 더 가까이</p>
+            <h2 id="guest-gate-title">로그인하고 함께해요</h2>
+            <p id="guest-gate-reason">반응을 남기려면 로그인이 필요해요.</p>
+            <div class="guest-gate-actions">
+                <a class="primary-button" href="{{ url_for('signup') }}">펫 MBTI 검사하고 시작하기</a>
+                <a class="ghost-button" href="{{ url_for('login') }}">기존 회원 로그인</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/guest_feed.js') }}?v=guest-feed-20260630a"></script>
+</body>
+</html>

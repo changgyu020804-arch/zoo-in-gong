@@ -45,7 +45,14 @@ def register_page_routes(app):
     def index():
         username = session.get("username")
         if not username:
-            return redirect(url_for("welcome"))
+            feed_page = get_feed_page(None, limit=20)
+            return render_template(
+                "guest_feed.html",
+                posts=feed_page["posts"],
+                feed_has_more=feed_page["has_more"],
+                feed_next_cursor=feed_page["next_cursor"],
+                reaction_rankings=build_reaction_rankings(),
+            )
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
         feed_page = get_feed_page(username, limit=20)

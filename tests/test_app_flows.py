@@ -52,11 +52,43 @@ def login_as(client, username):
         session["username"] = username
 
 
-def test_first_visit_redirects_to_welcome(client):
+def test_first_visit_shows_public_feed(client):
+    create_user(client, "public_owner", "공개멍")
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            "INSERT INTO posts (image_url, caption, username) VALUES (?, ?, ?)",
+            ("/static/uploads/public.jpg", "어서 와요", "public_owner"),
+        )
+        conn.commit()
+
     response = client.get("/")
 
-    assert response.status_code == 302
-    assert "/welcome" in response.headers["Location"]
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "오늘의 댕댕이 피드" in html
+    assert "공개멍" in html
+    assert 'id="guest-gate-panel"' in html
+    assert "펫 MBTI 검사하고 시작하기" in html
+
+
+def test_guest_can_read_feed_but_cannot_react(client):
+    create_user(client, "owner", "오너")
+    with client.db.get_db_connection() as conn:
+        post_id = conn.execute(
+            "INSERT INTO posts (image_url, caption, username) VALUES (?, ?, ?)",
+            ("/static/uploads/guest.jpg", "게스트 피드", "owner"),
+        ).lastrowid
+        conn.commit()
+
+    feed = client.get("/api/feed")
+    detail = client.get(f"/api/posts/{post_id}")
+    reaction = client.post(f"/react/cute/{post_id}")
+
+    assert feed.status_code == 200
+    assert feed.get_json()["posts"][0]["id"] == post_id
+    assert detail.status_code == 200
+    assert detail.get_json()["post"]["id"] == post_id
+    assert reaction.status_code == 401
 
 
 def test_welcome_offers_login_and_pet_mbti_paths(client):
