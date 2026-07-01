@@ -85,6 +85,16 @@ def password_validation_error(password, confirmation):
     return ""
 
 
+def normalize_email(value):
+    return clean_single_line_text(value, 180).casefold()
+
+
+def email_validation_error(email):
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email or ""):
+        return "올바른 이메일 주소를 입력해 주세요."
+    return ""
+
+
 def account_lookup_values(fields):
     return (fields["pet_name"], fields["pet_species"], fields["phone_number"])
 
@@ -226,6 +236,19 @@ def register_auth_routes(app):
             "oauth_error": oauth_error,
         }
 
+    def find_email_account(email):
+        with get_db_connection() as conn:
+            return conn.execute(
+                """
+                SELECT u.username, u.password, o.provider
+                FROM oauth_accounts o
+                JOIN users u ON u.username = o.username
+                WHERE o.provider = 'email' AND o.provider_user_id = ?
+                LIMIT 1
+                """,
+                (email,),
+            ).fetchone()
+
     @app.route("/welcome")
     def welcome():
         return render_template("welcome.html", **welcome_context())
@@ -303,6 +326,85 @@ def register_auth_routes(app):
         login_or_create_oauth_user("kakao", provider_user_id, email, account_name, account_avatar_url)
         return redirect(url_for("index"))
 
+    @app.route("/auth/email", methods=["GET", "POST"])
+    def email_auth():
+        mode = clean_single_line_text(request.values.get("mode", "login"), 20)
+        if mode not in {"login", "signup"}:
+            mode = "login"
+        next_url = safe_next_path(request.values.get("next", ""))
+        context = {
+            "mode": mode,
+            "next_url": next_url,
+            "error": "",
+            "form_data": request.form,
+        }
+        if request.method == "GET":
+            return render_template("email_auth.html", **context)
+
+        action = clean_single_line_text(request.form.get("action", mode), 20)
+        email = normalize_email(request.form.get("email", ""))
+        password = clean_single_line_text(request.form.get("password", ""), 100)
+        context["mode"] = action if action in {"login", "signup"} else mode
+
+        email_error = email_validation_error(email)
+        if email_error:
+            context["error"] = email_error
+            return render_template("email_auth.html", **context), 400
+
+        if action == "signup":
+            account_name = clean_single_line_text(request.form.get("account_name", ""), 80)
+            confirmation = clean_single_line_text(request.form.get("password_confirmation", ""), 100)
+            if not account_name:
+                context["error"] = "사용할 닉네임을 입력해 주세요."
+                return render_template("email_auth.html", **context), 400
+            password_error = password_validation_error(password, confirmation)
+            if password_error:
+                context["error"] = password_error
+                return render_template("email_auth.html", **context), 400
+
+            with get_db_connection() as conn:
+                existing_email = conn.execute(
+                    "SELECT provider FROM oauth_accounts WHERE LOWER(email) = ? LIMIT 1",
+                    (email,),
+                ).fetchone()
+            if existing_email:
+                provider_labels = {"google": "Google", "kakao": "카카오", "email": "이메일"}
+                provider_label = provider_labels.get(existing_email["provider"], "다른")
+                context["error"] = f"이미 {provider_label} 계정으로 가입된 이메일이에요."
+                return render_template("email_auth.html", **context), 409
+
+            username = unique_oauth_username("email", email)
+            with get_db_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO users (
+                        username, password, pet_name, pet_species, pet_age, persona,
+                        activity_level, pet_likes, pet_dislikes, account_email,
+                        account_name, account_avatar_url, pet_profile_completed
+                    )
+                    VALUES (?, ?, '', '', 0, '', '', '', '', ?, ?, '', 0)
+                    """,
+                    (username, generate_password_hash(password), email, account_name),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO oauth_accounts (username, provider, provider_user_id, email)
+                    VALUES (?, 'email', ?, ?)
+                    """,
+                    (username, email, email),
+                )
+                conn.commit()
+            session["username"] = username
+            return redirect(next_url or url_for("index"))
+
+        account = find_email_account(email)
+        if account and check_password_hash(account["password"], password):
+            session["username"] = account["username"]
+            return redirect(next_url or url_for("index"))
+
+        context["error"] = "이메일 또는 비밀번호가 올바르지 않아요."
+        return render_template("email_auth.html", **context), 401
+
     @app.route("/match/<inviter_username>")
     def match_invite(inviter_username):
         inviter_username = clean_single_line_text(inviter_username, 50)
@@ -324,8 +426,8 @@ def register_auth_routes(app):
             match_result=match_result,
             is_owner=viewer_username == inviter_username,
             invite_url=url_for("match_invite", inviter_username=inviter_username, _external=True),
-            login_url=url_for("login", next=invite_path),
-            signup_url=url_for("signup", invite=inviter_username),
+            login_url=url_for("email_auth", mode="login", next=invite_path),
+            signup_url=url_for("email_auth", mode="signup", next=invite_path),
         )
 
     @app.route("/api/signup/username-check")
@@ -350,6 +452,8 @@ def register_auth_routes(app):
     @app.route("/login", methods=["GET", "POST"])
     def login():
         next_url = safe_next_path(request.values.get("next", ""))
+        if request.method == "GET":
+            return redirect(url_for("welcome", next=next_url) if next_url else url_for("welcome"))
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
             password = clean_single_line_text(request.form["password"], 100)
@@ -380,7 +484,7 @@ def register_auth_routes(app):
                 next_url=next_url,
             )
 
-        return render_template("login.html", next_url=next_url)
+        return redirect(url_for("welcome"))
 
     @app.route("/find-account", methods=["GET", "POST"])
     def find_account():
@@ -426,6 +530,9 @@ def register_auth_routes(app):
         )
         if invite_username and not username_exists(invite_username):
             invite_username = ""
+
+        if request.method == "GET":
+            return redirect(url_for("email_auth", mode="signup"))
 
         if request.method == "POST":
             username = clean_single_line_text(request.form["username"], 50)
@@ -560,7 +667,7 @@ def register_auth_routes(app):
                     invite_username=invite_username,
                 )
 
-        return render_template("signup.html", invite_username=invite_username)
+        return redirect(url_for("email_auth", mode="signup"))
 
     @app.route("/pet-onboarding", methods=["GET", "POST"])
     def pet_onboarding():

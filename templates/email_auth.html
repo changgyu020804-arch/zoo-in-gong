@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+{% set is_signup = mode == 'signup' %}
+{% set page_title = ('이메일 회원가입' if is_signup else '이메일 로그인') ~ ' | Zoo-In-Gong' %}
+{% include 'partials/head.html' %}
+<body class="email-auth-page dog-world-page">
+    <main class="email-auth-shell">
+        <a class="email-auth-back" href="{{ url_for('welcome') }}" aria-label="로그인 방법 선택으로 돌아가기">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <section class="email-auth-card">
+            <div class="email-auth-brand">
+                <img src="{{ url_for('static', filename='images/juingong-entry-banner.png') }}" alt="Zoo-In-Gong">
+                <p class="auth-kicker">강아지가 주인공이 되는 공간</p>
+                <h1>{{ '이메일 회원가입' if is_signup else '이메일 로그인' }}</h1>
+                <p>{{ '보호자 계정을 만든 뒤 피드를 둘러볼 수 있어요.' if is_signup else '가입한 이메일과 비밀번호를 입력해 주세요.' }}</p>
+            </div>
+
+            <nav class="email-auth-tabs" aria-label="이메일 계정 메뉴">
+                <a class="{% if not is_signup %}is-active{% endif %}" href="{{ url_for('email_auth', mode='login', next=next_url) }}">로그인</a>
+                <a class="{% if is_signup %}is-active{% endif %}" href="{{ url_for('email_auth', mode='signup', next=next_url) }}">회원가입</a>
+            </nav>
+
+            {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+            <form class="email-auth-form" action="{{ url_for('email_auth') }}" method="post">
+                <input type="hidden" name="action" value="{{ mode }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% if is_signup %}
+                <label>
+                    <span>닉네임</span>
+                    <input type="text" name="account_name" value="{{ form_data.get('account_name', '') }}" maxlength="80" autocomplete="nickname" placeholder="보호자 닉네임" required>
+                </label>
+                {% endif %}
+                <label>
+                    <span>이메일</span>
+                    <input type="email" name="email" value="{{ form_data.get('email', '') }}" maxlength="180" autocomplete="email" placeholder="name@example.com" required>
+                </label>
+                <label>
+                    <span>비밀번호</span>
+                    <input type="password" name="password" maxlength="100" autocomplete="{{ 'new-password' if is_signup else 'current-password' }}" placeholder="{{ '8자 이상, 숫자 포함' if is_signup else '비밀번호 입력' }}" required>
+                </label>
+                {% if is_signup %}
+                <label>
+                    <span>비밀번호 확인</span>
+                    <input type="password" name="password_confirmation" maxlength="100" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력" required>
+                </label>
+                {% endif %}
+                <button type="submit" class="email-auth-submit">{{ '회원가입하고 시작하기' if is_signup else '이메일로 로그인' }}</button>
+            </form>
+            <p class="email-auth-switch">
+                {{ '이미 계정이 있나요?' if is_signup else '처음 오셨나요?' }}
+                <a href="{{ url_for('email_auth', mode=('login' if is_signup else 'signup'), next=next_url) }}">{{ '로그인' if is_signup else '회원가입' }}</a>
+            </p>
+        </section>
+    </main>
+</body>
+</html>

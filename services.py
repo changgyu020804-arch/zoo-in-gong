@@ -308,6 +308,7 @@ def get_account_profile(username):
     provider_labels = {
         "google": "Google",
         "kakao": "카카오",
+        "email": "이메일",
         "password": "기존 아이디",
     }
     return {

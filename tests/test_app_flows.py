@@ -77,17 +77,19 @@ def test_guest_cannot_read_feed_or_react(client):
     assert reaction.status_code == 401
 
 
-def test_welcome_offers_kakao_google_and_existing_login_paths(client):
+def test_welcome_offers_kakao_google_and_email_paths(client):
     response = client.get("/welcome")
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert 'href="/login"' in html
     assert 'href="/auth/google"' in html
     assert 'href="/auth/kakao"' in html
+    assert 'href="/auth/email?mode=login"' in html
+    assert 'href="/auth/email?mode=signup"' in html
     assert "Google" in html
     assert "카카오" in html
-    assert "기존 아이디로 로그인" in html
+    assert "이메일로 시작하기" in html
+    assert "기존 아이디로 로그인" not in html
     assert "네이버" not in html
 
 
@@ -188,19 +190,73 @@ def test_pet_onboarding_completes_google_owner_profile(client):
     assert dict(user) == {"pet_name": "콩이", "pet_species": "푸들", "pet_profile_completed": 1}
 
 
-def test_signup_starts_with_pet_mbti_before_account_fields(client):
+def test_legacy_signup_page_redirects_to_email_account_signup(client):
     response = client.get("/signup")
 
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert 'class="signup-step persona-step is-active"' in html
-    assert html.index('data-section="persona"') < html.index('data-section="account"')
-    assert "펫 MBTI 1/" in html
-    assert html.count('class="fa-solid fa-paw mbti-paw"') == 6
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/auth/email?mode=signup")
+
+
+def test_email_signup_creates_owner_account_without_pet_profile(client):
+    response = client.post(
+        "/auth/email",
+        data={
+            "action": "signup",
+            "account_name": "루비 보호자",
+            "email": "Owner@Example.com",
+            "password": "password1",
+            "password_confirmation": "password1",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
+    with client.db.get_db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT u.username, u.account_email, u.account_name, u.pet_profile_completed,
+                   u.pet_name, o.provider, o.provider_user_id
+            FROM users u
+            JOIN oauth_accounts o ON o.username = u.username
+            WHERE o.provider = 'email'
+            """
+        ).fetchone()
+    assert row["account_email"] == "owner@example.com"
+    assert row["account_name"] == "루비 보호자"
+    assert row["pet_profile_completed"] == 0
+    assert row["pet_name"] == ""
+    assert row["provider"] == "email"
+    assert row["provider_user_id"] == "owner@example.com"
+    with client.session_transaction() as user_session:
+        assert user_session["username"] == row["username"]
+
+
+def test_email_account_can_log_back_in(client):
+    client.post(
+        "/auth/email",
+        data={
+            "action": "signup",
+            "account_name": "보호자",
+            "email": "owner@example.com",
+            "password": "password1",
+            "password_confirmation": "password1",
+        },
+    )
+    client.get("/logout")
+
+    response = client.post(
+        "/auth/email",
+        data={"action": "login", "email": "OWNER@example.com", "password": "password1"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
 
 
 def test_text_responses_declare_utf8(client):
-    response = client.get("/login")
+    response = client.get("/auth/email")
 
     assert response.status_code == 200
     assert "charset=utf-8" in response.headers["Content-Type"].lower()
@@ -209,7 +265,7 @@ def test_text_responses_declare_utf8(client):
 
 def test_favicon_is_available_and_linked(client):
     favicon = client.get("/favicon.ico")
-    login_page = client.get("/login").get_data(as_text=True)
+    login_page = client.get("/auth/email").get_data(as_text=True)
 
     assert favicon.status_code == 200
     assert favicon.mimetype == "image/svg+xml"
@@ -338,8 +394,8 @@ def test_match_invite_guides_guests_and_shows_logged_in_result(client):
 
     assert guest_response.status_code == 200
     assert "나리와 얼마나 잘 맞을까요?" in guest_html
-    assert "/signup?invite=nari" in guest_html
-    assert "/login?next=/match/nari" in guest_html
+    assert "/auth/email?mode=signup&amp;next=/match/nari" in guest_html
+    assert "/auth/email?mode=login&amp;next=/match/nari" in guest_html
 
     login_as(client, "bori")
     result_response = client.get("/match/nari")

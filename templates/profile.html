@@ -51,6 +51,8 @@
                             <i class="fa-solid fa-comment" aria-hidden="true"></i>
                             {% elif account.provider == 'google' %}
                             <b aria-hidden="true">G</b>
+                            {% elif account.provider == 'email' %}
+                            <i class="fa-regular fa-envelope" aria-hidden="true"></i>
                             {% else %}
                             <i class="fa-solid fa-user" aria-hidden="true"></i>
                             {% endif %}

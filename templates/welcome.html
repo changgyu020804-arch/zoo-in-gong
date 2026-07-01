@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-{% set page_title = 'Zoo-In-Gong | 시작하기' %}
+{% set page_title = 'Zoo-In-Gong | 로그인' %}
 {% include 'partials/head.html' %}
 <body class="welcome-page dog-world-page">
     <main class="welcome-shell">
@@ -13,43 +13,45 @@
             <div class="welcome-brand-copy">
                 <p class="auth-kicker">강아지가 주인공이 되는 공간</p>
                 <h1 id="welcome-title">Zoo-In-Gong</h1>
-                <p>보호자 계정으로 먼저 들어오고, 게시물을 올릴 때 우리 강아지 프로필을 만들어요.</p>
+                <p>보호자 계정으로 먼저 시작하고, 게시물을 올릴 때 우리 강아지 프로필을 만들어요.</p>
             </div>
         </section>
 
         <section class="welcome-auth-options" aria-label="로그인 방법 선택">
-            {% if oauth_error %}<div class="error-box welcome-oauth-error">{{ oauth_error }}</div>{% endif %}
             <div class="social-login-intro">
-                <h2>간편하게 시작하기</h2>
-                <p>사용할 계정을 선택해 주세요.</p>
+                <h2>로그인</h2>
+                <p>간편하게 시작해요</p>
             </div>
-            <div class="social-login-row">
+            {% if oauth_error %}<div class="error-box welcome-oauth-error">{{ oauth_error }}</div>{% endif %}
+            <div class="login-provider-stack">
                 <a
-                    class="social-login-provider social-login-kakao{% if not kakao_login_enabled %} is-disabled{% endif %}"
+                    class="login-provider-button login-provider-kakao{% if not kakao_login_enabled %} is-disabled{% endif %}"
                     href="{{ url_for('kakao_login') }}"
-                    aria-label="카카오 계정으로 로그인"
                     {% if not kakao_login_enabled %}aria-describedby="social-login-help"{% endif %}
                 >
-                    <span class="social-login-circle" aria-hidden="true"><i class="fa-solid fa-comment"></i></span>
-                    <strong>카카오</strong>
+                    <span class="login-provider-icon" aria-hidden="true"><i class="fa-solid fa-comment"></i></span>
+                    <span>카카오로 시작하기</span>
                 </a>
                 <a
-                    class="social-login-provider social-login-google{% if not google_login_enabled %} is-disabled{% endif %}"
+                    class="login-provider-button login-provider-google{% if not google_login_enabled %} is-disabled{% endif %}"
                     href="{{ url_for('google_login') }}"
-                    aria-label="Google 계정으로 로그인"
                     {% if not google_login_enabled %}aria-describedby="social-login-help"{% endif %}
                 >
-                    <span class="social-login-circle google-mark" aria-hidden="true">G</span>
-                    <strong>Google</strong>
+                    <span class="login-provider-icon google-mark" aria-hidden="true">G</span>
+                    <span>Google로 시작하기</span>
+                </a>
+                <div class="welcome-auth-divider"><span>또는</span></div>
+                <a class="login-provider-button login-provider-email" href="{{ url_for('email_auth', mode='login') }}">
+                    <span class="login-provider-icon" aria-hidden="true"><i class="fa-regular fa-envelope"></i></span>
+                    <span>이메일로 시작하기</span>
                 </a>
             </div>
-            <div class="welcome-auth-divider"><span>또는</span></div>
-            <a class="welcome-legacy-login" href="{{ url_for('login') }}">
-                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
-                기존 아이디로 로그인
-            </a>
+            <p class="welcome-signup-hint">
+                처음이신가요?
+                <a href="{{ url_for('email_auth', mode='signup') }}">이메일로 회원가입</a>
+            </p>
             {% if not google_login_enabled or not kakao_login_enabled %}
-            <p class="welcome-google-help" id="social-login-help">서버에 연결된 로그인만 사용할 수 있어요.</p>
+            <p class="welcome-google-help" id="social-login-help">서버에 연결된 로그인 방식만 사용할 수 있어요.</p>
             {% endif %}
         </section>
     </main>
