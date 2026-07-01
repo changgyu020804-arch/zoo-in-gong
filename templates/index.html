@@ -423,6 +423,7 @@
                         <div class="meta-line">{{ profile.handle }}</div>
                     </div>
                 </div>
+                {% if profile.has_pet_profile %}
                 <p class="status-line">{{ profile.status_message }}</p>
                 <p class="bio-line">{{ profile.bio }}</p>
                 <div class="badge-row compact">
@@ -433,6 +434,9 @@
                     </span>
                     {% endfor %}
                 </div>
+                {% else %}
+                <a class="ghost-button full-width" href="{{ url_for('pet_onboarding') }}">강아지 프로필 만들기</a>
+                {% endif %}
                 <div class="stats-row">
                     <div><strong>{{ stats.posts_count }}</strong><span>게시물</span></div>
                     <div><strong>{{ stats.total_likes }}</strong><span>좋아요</span></div>

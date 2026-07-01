@@ -65,6 +65,7 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% if user.has_pet_profile %}
                         <div class="meta-line">
                             {{ user.handle }} · {{ user.pet_species }} · {{ user.pet_age }}살
                         </div>
@@ -79,6 +80,9 @@
                             </span>
                             {% endfor %}
                         </div>
+                        {% else %}
+                        <a class="primary-button" href="{{ url_for('pet_onboarding') }}">강아지 프로필 만들기</a>
+                        {% endif %}
                         <div class="stats-row large">
                             <div><strong>{{ stats.posts_count }}</strong><span>게시물</span></div>
                             <div><strong>{{ stats.total_likes }}</strong><span>좋아요</span></div>
@@ -94,6 +98,7 @@
                     </div>
                 </div>
 
+                {% if user.has_pet_profile %}
                 <div class="chip-row">
                     <span class="tag-pill">#{{ user.persona }}</span>
                     {% if user.personality %}<span class="tag-pill">성격: {{ user.personality }}</span>{% endif %}
@@ -102,6 +107,7 @@
                     <span class="tag-pill">싫어함: {{ user.pet_dislikes }}</span>
                     <span class="tag-pill">출몰지: {{ user.favorite_place }}</span>
                 </div>
+                {% endif %}
             </section>
 
             {% if can_edit %}

@@ -109,10 +109,16 @@ def test_google_owner_can_browse_but_must_create_pet_before_upload(client):
     login_as(client, "google_owner")
 
     home = client.get("/")
+    profile = client.get("/profile")
     upload = client.post("/upload")
 
     assert home.status_code == 200
     assert "우리 강아지 프로필을 먼저 만들어요" in home.get_data(as_text=True)
+    profile_html = profile.get_data(as_text=True)
+    assert 'class="persona-note"' not in profile_html
+    assert "산책왕" not in profile_html
+    assert "간식러버" not in profile_html
+    assert "강아지 프로필 만들기" in profile_html
     assert upload.status_code == 409
     assert upload.get_json()["redirect_url"] == "/pet-onboarding"
 

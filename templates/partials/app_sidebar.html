@@ -43,7 +43,7 @@
         </span>
         <span class="profile-chip-copy">
             <strong>{{ sidebar_profile.pet_name }}</strong>
-            <small>{{ sidebar_profile.persona }}</small>
+            {% if sidebar_profile.has_pet_profile %}<small>{{ sidebar_profile.persona }}</small>{% endif %}
         </span>
     {% if sidebar_chip_button %}
     </button>

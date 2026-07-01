@@ -265,8 +265,18 @@ def get_user_profile(username):
         profile["avatar_url"] = profile["account_avatar_url"] or ""
         profile["display_avatar_url"] = profile["avatar_url"]
         profile["initial"] = profile["pet_name"][:1].upper()
-        profile["status_message"] = "강아지 프로필을 준비 중이에요"
-        profile["bio"] = "게시물을 올릴 때 우리 강아지 프로필을 만들어 보세요."
+        profile["pet_species"] = ""
+        profile["pet_age"] = None
+        profile["persona"] = ""
+        profile["persona_summary"] = ""
+        profile["persona_traits"] = []
+        profile["activity_level"] = ""
+        profile["pet_likes"] = ""
+        profile["pet_dislikes"] = ""
+        profile["status_message"] = ""
+        profile["bio"] = ""
+        profile["favorite_place"] = ""
+        profile["personality"] = ""
     return profile
 
 
@@ -499,6 +509,9 @@ def add_match_info(viewer_profile, target_profile):
 
 
 def build_profile_badges(profile):
+    if profile.get("has_pet_profile") is False:
+        return []
+
     posts_count = int(profile.get("posts_count") or 0)
     total_likes = int(profile.get("total_likes") or 0)
     friend_count = int(profile.get("friend_count") or 0)
