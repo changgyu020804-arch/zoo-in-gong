@@ -2555,6 +2555,119 @@ button.grid-post {
     background: #fff9f4;
 }
 
+.welcome-auth-options {
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+    padding: 0 28px 30px;
+    background: #fff9f4;
+    text-align: center;
+}
+
+.social-login-intro h2,
+.social-login-intro p {
+    margin: 0;
+}
+
+.social-login-intro h2 {
+    color: #2f241d;
+    font-size: 1.25rem;
+}
+
+.social-login-intro p {
+    margin-top: 5px;
+    color: #7a7068;
+    font-size: 0.9rem;
+}
+
+.social-login-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 30px;
+}
+
+.social-login-provider {
+    width: 88px;
+    display: grid;
+    justify-items: center;
+    gap: 9px;
+    color: #332a24;
+}
+
+.social-login-provider:hover .social-login-circle {
+    box-shadow: 0 10px 24px rgba(74, 53, 39, 0.18);
+    transform: translateY(-2px);
+}
+
+.social-login-provider.is-disabled {
+    opacity: 0.55;
+}
+
+.social-login-provider strong {
+    font-size: 0.9rem;
+}
+
+.social-login-circle {
+    width: 76px;
+    height: 76px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.social-login-kakao .social-login-circle {
+    background: #fee500;
+    color: #191919;
+    font-size: 2rem;
+}
+
+.social-login-google .social-login-circle {
+    border: 1px solid #e1e4e8;
+    background: #fff;
+    color: #4285f4;
+    font-family: Arial, sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.welcome-auth-divider {
+    width: min(360px, 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #9a8f87;
+    font-size: 0.78rem;
+}
+
+.welcome-auth-divider::before,
+.welcome-auth-divider::after {
+    height: 1px;
+    flex: 1;
+    background: #eadbd0;
+    content: "";
+}
+
+.welcome-legacy-login {
+    width: min(360px, 100%);
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border: 1px solid #e6d4c7;
+    border-radius: 8px;
+    background: #fff;
+    color: #4e423a;
+    font-weight: 700;
+}
+
+.welcome-legacy-login:hover {
+    border-color: #e9654f;
+    color: #d74d37;
+}
+
 .welcome-oauth-error,
 .welcome-google-help {
     grid-column: 1 / -1;
@@ -5242,6 +5355,25 @@ body {
         gap: 10px;
         padding: 0 14px calc(24px + env(safe-area-inset-bottom));
         background: #fff9f4;
+    }
+
+    .welcome-auth-options {
+        gap: 16px;
+        padding: 0 20px calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .social-login-row {
+        gap: 22px;
+    }
+
+    .social-login-circle {
+        width: 68px;
+        height: 68px;
+    }
+
+    .social-login-kakao .social-login-circle,
+    .social-login-google .social-login-circle {
+        font-size: 1.8rem;
     }
 
     .welcome-path {

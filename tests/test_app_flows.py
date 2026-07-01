@@ -77,15 +77,18 @@ def test_guest_cannot_read_feed_or_react(client):
     assert reaction.status_code == 401
 
 
-def test_welcome_offers_google_and_existing_login_paths(client):
+def test_welcome_offers_kakao_google_and_existing_login_paths(client):
     response = client.get("/welcome")
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'href="/login"' in html
     assert 'href="/auth/google"' in html
-    assert "Google로 시작" in html
-    assert "아이디로 로그인" in html
+    assert 'href="/auth/kakao"' in html
+    assert "Google" in html
+    assert "카카오" in html
+    assert "기존 아이디로 로그인" in html
+    assert "네이버" not in html
 
 
 def test_google_login_without_server_keys_is_friendly(client):
@@ -93,6 +96,34 @@ def test_google_login_without_server_keys_is_friendly(client):
 
     assert response.status_code == 503
     assert "Google OAuth 키를 먼저 연결" in response.get_data(as_text=True)
+
+
+def test_kakao_login_without_server_keys_is_friendly(client):
+    response = client.get("/auth/kakao")
+
+    assert response.status_code == 503
+    assert "카카오 앱 키를 먼저 연결" in response.get_data(as_text=True)
+
+
+def test_kakao_login_redirect_uses_configured_callback(client, tmp_path, monkeypatch):
+    import app as app_module
+
+    monkeypatch.setenv("KAKAO_REST_API_KEY", "test-rest-api-key")
+    monkeypatch.setenv("KAKAO_CLIENT_SECRET", "test-client-secret")
+    monkeypatch.setenv("KAKAO_REDIRECT_URI", "https://zooingong.com/auth/kakao/callback")
+    kakao_app = app_module.create_app(
+        database_path=tmp_path / "kakao-test.db",
+        upload_folder=tmp_path / "kakao-uploads",
+        testing=True,
+    )
+
+    with kakao_app.test_client() as kakao_client:
+        response = kakao_client.get("/auth/kakao", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["Location"].startswith("https://kauth.kakao.com/oauth/authorize?")
+    assert "client_id=test-rest-api-key" in response.headers["Location"]
+    assert "redirect_uri=https%3A%2F%2Fzooingong.com%2Fauth%2Fkakao%2Fcallback" in response.headers["Location"]
 
 
 def test_google_owner_can_browse_but_must_create_pet_before_upload(client):

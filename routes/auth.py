@@ -142,6 +142,8 @@ def reset_password_for_account(fields, new_password):
 def register_auth_routes(app):
     google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
     google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    kakao_rest_api_key = os.environ.get("KAKAO_REST_API_KEY", "").strip()
+    kakao_client_secret = os.environ.get("KAKAO_CLIENT_SECRET", "").strip()
     oauth = OAuth(app)
     google = oauth.register(
         name="google",
@@ -150,67 +152,38 @@ def register_auth_routes(app):
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
+    kakao = oauth.register(
+        name="kakao",
+        client_id=kakao_rest_api_key,
+        client_secret=kakao_client_secret,
+        authorize_url="https://kauth.kakao.com/oauth/authorize",
+        access_token_url="https://kauth.kakao.com/oauth/token",
+        api_base_url="https://kapi.kakao.com/",
+        client_kwargs={"token_endpoint_auth_method": "client_secret_post"},
+    )
 
-    def google_redirect_uri():
-        configured_uri = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
+    def oauth_redirect_uri(environment_key, endpoint):
+        configured_uri = os.environ.get(environment_key, "").strip()
         if configured_uri:
             return configured_uri
         if os.environ.get("RENDER"):
-            return url_for("google_callback", _external=True, _scheme="https")
-        return url_for("google_callback", _external=True)
+            return url_for(endpoint, _external=True, _scheme="https")
+        return url_for(endpoint, _external=True)
 
-    def unique_google_username(provider_user_id):
+    def unique_oauth_username(provider, provider_user_id):
         suffix = re.sub(r"[^a-zA-Z0-9]", "", provider_user_id)[-14:] or "account"
-        candidate = f"google_{suffix}"[:50]
+        candidate = f"{provider}_{suffix}"[:50]
         counter = 1
         while username_exists(candidate):
             counter += 1
-            candidate = f"google_{suffix}_{counter}"[:50]
+            candidate = f"{provider}_{suffix}_{counter}"[:50]
         return candidate
 
-    @app.route("/welcome")
-    def welcome():
-        return render_template(
-            "welcome.html",
-            google_login_enabled=bool(google_client_id and google_client_secret),
-        )
-
-    @app.route("/auth/google")
-    def google_login():
-        if not google_client_id or not google_client_secret:
-            return render_template(
-                "welcome.html",
-                google_login_enabled=False,
-                oauth_error="Google 로그인을 사용하려면 서버에 Google OAuth 키를 먼저 연결해야 해요.",
-            ), 503
-        return google.authorize_redirect(google_redirect_uri())
-
-    @app.route("/auth/google/callback")
-    def google_callback():
-        if not google_client_id or not google_client_secret:
-            return redirect(url_for("welcome"))
-        try:
-            token = google.authorize_access_token()
-            userinfo = token.get("userinfo") or google.userinfo().json()
-        except Exception:
-            app.logger.exception("Google OAuth callback failed")
-            return render_template(
-                "welcome.html",
-                google_login_enabled=True,
-                oauth_error="Google 로그인에 실패했어요. 잠시 후 다시 시도해 주세요.",
-            ), 400
-
-        provider_user_id = clean_single_line_text(userinfo.get("sub", ""), 120)
-        email = clean_single_line_text(userinfo.get("email", ""), 180)
-        account_name = clean_single_line_text(userinfo.get("name", ""), 80)
-        account_avatar_url = clean_single_line_text(userinfo.get("picture", ""), 500)
-        if not provider_user_id:
-            return redirect(url_for("welcome"))
-
+    def login_or_create_oauth_user(provider, provider_user_id, email, account_name, account_avatar_url):
         with get_db_connection() as conn:
             oauth_row = conn.execute(
                 "SELECT username FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
-                ("google", provider_user_id),
+                (provider, provider_user_id),
             ).fetchone()
             if oauth_row:
                 username = oauth_row["username"]
@@ -223,7 +196,7 @@ def register_auth_routes(app):
                     (email, account_name, account_avatar_url, username),
                 )
             else:
-                username = unique_google_username(provider_user_id)
+                username = unique_oauth_username(provider, provider_user_id)
                 conn.execute(
                     """
                     INSERT INTO users (
@@ -238,13 +211,96 @@ def register_auth_routes(app):
                 conn.execute(
                     """
                     INSERT INTO oauth_accounts (username, provider, provider_user_id, email)
-                    VALUES (?, 'google', ?, ?)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (username, provider_user_id, email),
+                    (username, provider, provider_user_id, email),
                 )
             conn.commit()
-
         session["username"] = username
+        return username
+
+    def welcome_context(oauth_error=""):
+        return {
+            "google_login_enabled": bool(google_client_id and google_client_secret),
+            "kakao_login_enabled": bool(kakao_rest_api_key and kakao_client_secret),
+            "oauth_error": oauth_error,
+        }
+
+    @app.route("/welcome")
+    def welcome():
+        return render_template("welcome.html", **welcome_context())
+
+    @app.route("/auth/google")
+    def google_login():
+        if not google_client_id or not google_client_secret:
+            return render_template(
+                "welcome.html",
+                **welcome_context("Google 로그인을 사용하려면 서버에 Google OAuth 키를 먼저 연결해야 해요."),
+            ), 503
+        return google.authorize_redirect(oauth_redirect_uri("GOOGLE_REDIRECT_URI", "google_callback"))
+
+    @app.route("/auth/google/callback")
+    def google_callback():
+        if not google_client_id or not google_client_secret:
+            return redirect(url_for("welcome"))
+        try:
+            token = google.authorize_access_token()
+            userinfo = token.get("userinfo") or google.userinfo().json()
+        except Exception:
+            app.logger.exception("Google OAuth callback failed")
+            return render_template(
+                "welcome.html",
+                **welcome_context("Google 로그인에 실패했어요. 잠시 후 다시 시도해 주세요."),
+            ), 400
+
+        provider_user_id = clean_single_line_text(userinfo.get("sub", ""), 120)
+        email = clean_single_line_text(userinfo.get("email", ""), 180)
+        account_name = clean_single_line_text(userinfo.get("name", ""), 80)
+        account_avatar_url = clean_single_line_text(userinfo.get("picture", ""), 500)
+        if not provider_user_id:
+            return redirect(url_for("welcome"))
+
+        login_or_create_oauth_user("google", provider_user_id, email, account_name, account_avatar_url)
+        return redirect(url_for("index"))
+
+    @app.route("/auth/kakao")
+    def kakao_login():
+        if not kakao_rest_api_key or not kakao_client_secret:
+            return render_template(
+                "welcome.html",
+                **welcome_context("카카오 로그인을 사용하려면 서버에 카카오 앱 키를 먼저 연결해야 해요."),
+            ), 503
+        return kakao.authorize_redirect(oauth_redirect_uri("KAKAO_REDIRECT_URI", "kakao_callback"))
+
+    @app.route("/auth/kakao/callback")
+    def kakao_callback():
+        if not kakao_rest_api_key or not kakao_client_secret:
+            return redirect(url_for("welcome"))
+        try:
+            token = kakao.authorize_access_token()
+            response = kakao.get("v2/user/me", token=token)
+            response.raise_for_status()
+            userinfo = response.json()
+        except Exception:
+            app.logger.exception("Kakao OAuth callback failed")
+            return render_template(
+                "welcome.html",
+                **welcome_context("카카오 로그인에 실패했어요. 카카오 앱 설정을 확인해 주세요."),
+            ), 400
+
+        provider_user_id = clean_single_line_text(str(userinfo.get("id", "")), 120)
+        kakao_account = userinfo.get("kakao_account") or {}
+        kakao_profile = kakao_account.get("profile") or userinfo.get("properties") or {}
+        email = clean_single_line_text(kakao_account.get("email", ""), 180)
+        account_name = clean_single_line_text(kakao_profile.get("nickname", ""), 80) or "카카오 사용자"
+        account_avatar_url = clean_single_line_text(
+            kakao_profile.get("profile_image_url", "") or kakao_profile.get("profile_image", ""),
+            500,
+        )
+        if not provider_user_id:
+            return redirect(url_for("welcome"))
+
+        login_or_create_oauth_user("kakao", provider_user_id, email, account_name, account_avatar_url)
         return redirect(url_for("index"))
 
     @app.route("/match/<inviter_username>")

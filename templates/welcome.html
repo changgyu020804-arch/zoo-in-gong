@@ -17,33 +17,39 @@
             </div>
         </section>
 
-        <section class="welcome-paths" aria-label="시작 방법 선택">
+        <section class="welcome-auth-options" aria-label="로그인 방법 선택">
             {% if oauth_error %}<div class="error-box welcome-oauth-error">{{ oauth_error }}</div>{% endif %}
-            <a
-                class="welcome-path welcome-path-primary welcome-google-path{% if not google_login_enabled %} is-disabled{% endif %}"
-                href="{{ url_for('google_login') }}"
-                {% if not google_login_enabled %}aria-describedby="google-login-help"{% endif %}
-            >
-                <span class="welcome-path-icon google-mark" aria-hidden="true">G</span>
-                <span class="welcome-path-copy">
-                    <small>처음 방문했어요</small>
-                    <strong>Google로 시작</strong>
-                    <span>간편하게 가입하고 바로 댕댕이 피드를 둘러보세요.</span>
-                </span>
-                <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
+            <div class="social-login-intro">
+                <h2>간편하게 시작하기</h2>
+                <p>사용할 계정을 선택해 주세요.</p>
+            </div>
+            <div class="social-login-row">
+                <a
+                    class="social-login-provider social-login-kakao{% if not kakao_login_enabled %} is-disabled{% endif %}"
+                    href="{{ url_for('kakao_login') }}"
+                    aria-label="카카오 계정으로 로그인"
+                    {% if not kakao_login_enabled %}aria-describedby="social-login-help"{% endif %}
+                >
+                    <span class="social-login-circle" aria-hidden="true"><i class="fa-solid fa-comment"></i></span>
+                    <strong>카카오</strong>
+                </a>
+                <a
+                    class="social-login-provider social-login-google{% if not google_login_enabled %} is-disabled{% endif %}"
+                    href="{{ url_for('google_login') }}"
+                    aria-label="Google 계정으로 로그인"
+                    {% if not google_login_enabled %}aria-describedby="social-login-help"{% endif %}
+                >
+                    <span class="social-login-circle google-mark" aria-hidden="true">G</span>
+                    <strong>Google</strong>
+                </a>
+            </div>
+            <div class="welcome-auth-divider"><span>또는</span></div>
+            <a class="welcome-legacy-login" href="{{ url_for('login') }}">
+                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                기존 아이디로 로그인
             </a>
-
-            <a class="welcome-path" href="{{ url_for('login') }}">
-                <span class="welcome-path-icon" aria-hidden="true"><i class="fa-solid fa-right-to-bracket"></i></span>
-                <span class="welcome-path-copy">
-                    <small>기존 회원이에요</small>
-                    <strong>아이디로 로그인</strong>
-                    <span>기존 Zoo-In-Gong 아이디와 비밀번호를 계속 사용할 수 있어요.</span>
-                </span>
-                <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
-            </a>
-            {% if not google_login_enabled %}
-            <p class="welcome-google-help" id="google-login-help">개발 환경에서는 Google OAuth 키를 연결하면 버튼이 활성화돼요.</p>
+            {% if not google_login_enabled or not kakao_login_enabled %}
+            <p class="welcome-google-help" id="social-login-help">서버에 연결된 로그인만 사용할 수 있어요.</p>
             {% endif %}
         </section>
     </main>
