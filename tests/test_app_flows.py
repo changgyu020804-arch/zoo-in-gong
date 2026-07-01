@@ -140,7 +140,7 @@ def test_google_owner_can_browse_but_must_create_pet_before_upload(client):
     login_as(client, "google_owner")
 
     home = client.get("/")
-    profile = client.get("/profile")
+    profile = client.get("/profile?tab=pet")
     upload = client.post("/upload")
 
     assert home.status_code == 200
@@ -401,10 +401,77 @@ def test_profile_exposes_own_match_invite_link(client):
     create_user(client, "nari", "나리")
     login_as(client, "nari")
 
-    html = client.get("/profile").get_data(as_text=True)
+    html = client.get("/profile?tab=pet").get_data(as_text=True)
 
     assert 'href="/match/nari"' in html
     assert "궁합 초대" in html
+
+
+def test_own_profile_is_split_into_account_and_pet_tabs(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    account_html = client.get("/profile").get_data(as_text=True)
+    pet_html = client.get("/profile?tab=pet").get_data(as_text=True)
+
+    assert "내 프로필" in account_html
+    assert "반려동물 프로필" in account_html
+    assert 'class="owner-account-profile"' in account_html
+    assert 'class="profile-hero"' not in account_html
+    assert 'class="profile-hero"' in pet_html
+    assert "궁합 초대" in pet_html
+
+
+def test_social_account_email_is_visible_only_to_owner(client):
+    create_user(client, "viewer", "보는멍")
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO users (
+                username, password, pet_name, account_name, account_email,
+                pet_profile_completed
+            ) VALUES (?, '', ?, ?, ?, 1)
+            """,
+            ("google_owner", "구글멍", "정창규", "owner@example.com"),
+        )
+        conn.execute(
+            """
+            INSERT INTO oauth_accounts (username, provider, provider_user_id, email)
+            VALUES (?, 'google', ?, ?)
+            """,
+            ("google_owner", "google-sub", "owner@example.com"),
+        )
+        conn.commit()
+
+    login_as(client, "google_owner")
+    own_html = client.get("/profile").get_data(as_text=True)
+    login_as(client, "viewer")
+    public_html = client.get("/profile/google_owner").get_data(as_text=True)
+
+    assert "owner@example.com" in own_html
+    assert "Google 계정" in own_html
+    assert "owner@example.com" not in public_html
+    assert 'class="profile-section-tabs"' not in public_html
+
+
+def test_owner_can_update_account_nickname(client):
+    create_user(client, "nari", "나리")
+    login_as(client, "nari")
+
+    response = client.post(
+        "/profile/account",
+        data={"account_name": "나리 보호자"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "tab=account" in response.headers["Location"]
+    with client.db.get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT account_name FROM users WHERE username = ?",
+            ("nari",),
+        ).fetchone()
+    assert row["account_name"] == "나리 보호자"
 
 
 def test_find_account_page_finds_username_and_resets_password(client):

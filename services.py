@@ -280,6 +280,47 @@ def get_user_profile(username):
     return profile
 
 
+def get_account_profile(username):
+    with get_db_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                u.username,
+                u.account_name,
+                u.account_email,
+                u.account_avatar_url,
+                u.pet_name,
+                u.avatar_url,
+                o.provider,
+                o.created_at
+            FROM users u
+            LEFT JOIN oauth_accounts o ON o.username = u.username
+            WHERE u.username = ?
+            ORDER BY o.id DESC
+            LIMIT 1
+            """,
+            (username,),
+        ).fetchone()
+    if not row:
+        return None
+
+    provider = row["provider"] or "password"
+    provider_labels = {
+        "google": "Google",
+        "kakao": "카카오",
+        "password": "기존 아이디",
+    }
+    return {
+        "username": row["username"],
+        "name": row["account_name"] or row["pet_name"] or row["username"],
+        "email": row["account_email"] or "",
+        "avatar_url": row["account_avatar_url"] or row["avatar_url"] or "",
+        "provider": provider,
+        "provider_label": provider_labels.get(provider, provider),
+        "created_at": row["created_at"] or "",
+    }
+
+
 def get_following_usernames(conn, username):
     rows = conn.execute(
         "SELECT followed_username FROM follows WHERE follower_username = ?",

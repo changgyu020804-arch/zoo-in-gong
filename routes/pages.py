@@ -1,4 +1,4 @@
-from flask import redirect, render_template, session, url_for
+from flask import redirect, render_template, request, session, url_for
 
 from db import get_db_connection
 from services import (
@@ -14,6 +14,7 @@ from services import (
     get_friend_suggestions,
     get_feed_page,
     get_growth_album,
+    get_account_profile,
     get_posts,
     get_profile_stats,
     get_user_profile,
@@ -73,6 +74,21 @@ def register_page_routes(app):
         if not username:
             return redirect(url_for("login"))
         return render_profile_page(username)
+
+    @app.route("/profile/account", methods=["POST"])
+    def update_account_profile():
+        username = session.get("username")
+        if not username:
+            return redirect(url_for("login"))
+        account_name = clean_single_line_text(request.form.get("account_name", ""), 80)
+        if account_name:
+            with get_db_connection() as conn:
+                conn.execute(
+                    "UPDATE users SET account_name = ? WHERE username = ?",
+                    (account_name, username),
+                )
+                conn.commit()
+        return redirect(url_for("profile", tab="account"))
 
     @app.route("/profile/<target_username>")
     def public_profile(target_username):
@@ -163,6 +179,8 @@ def render_profile_page(target_username):
     profile_data = get_user_profile(target_username)
     viewer_profile = get_user_profile(viewer_username)
     is_owner = target_username == viewer_username
+    requested_tab = clean_single_line_text(request.args.get("tab", ""), 20)
+    active_profile_tab = "account" if is_owner and requested_tab != "pet" else "pet"
     stats = get_profile_stats(target_username)
     attach_profile_summary(profile_data, stats)
     notifications = build_notifications(viewer_username)
@@ -180,4 +198,6 @@ def render_profile_page(target_username):
         stats=stats,
         notifications=notifications,
         bootstrap=bootstrap,
+        active_profile_tab=active_profile_tab,
+        account=get_account_profile(viewer_username) if is_owner else None,
     )

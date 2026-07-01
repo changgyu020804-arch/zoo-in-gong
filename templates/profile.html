@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-{% set page_title = user.pet_name ~ ' | 프로필' %}
+{% set page_title = ((account.name if account else user.pet_name) ~ ' | 프로필') %}
 {% include 'partials/head.html' %}
 <body data-page="profile">
     <div class="app-shell">
@@ -10,7 +10,7 @@
         {% include 'partials/app_sidebar.html' %}
 
         <main class="content-column">
-            {% if can_edit %}
+            {% if can_edit and active_profile_tab == 'pet' %}
             {% set topbar_action = 'settings' %}
             {% set topbar_href = none %}
             {% set topbar_icon = 'fa-solid fa-sliders' %}
@@ -22,6 +22,55 @@
             {% set topbar_label = '내 프로필' %}
             {% endif %}
             {% include 'partials/mobile_topbar.html' %}
+
+            {% if can_edit %}
+            <nav class="profile-section-tabs" aria-label="프로필 구분">
+                <a class="{% if active_profile_tab == 'account' %}is-active{% endif %}" href="{{ url_for('profile', tab='account') }}">내 프로필</a>
+                <a class="{% if active_profile_tab == 'pet' %}is-active{% endif %}" href="{{ url_for('profile', tab='pet') }}">반려동물 프로필</a>
+            </nav>
+            {% endif %}
+
+            {% if can_edit and active_profile_tab == 'account' %}
+            <section class="owner-account-profile">
+                <div class="owner-account-avatar">
+                    {% if account.avatar_url %}
+                    <img src="{{ account.avatar_url }}" alt="{{ account.name }}">
+                    {% else %}
+                    <i class="fa-regular fa-user" aria-hidden="true"></i>
+                    {% endif %}
+                </div>
+                <div class="owner-account-details">
+                    <div class="owner-account-row owner-account-name-row">
+                        <span>닉네임</span>
+                        <strong>{{ account.name }}</strong>
+                    </div>
+                    <div class="owner-account-row">
+                        <span>{{ account.email or account.username }}</span>
+                        <span class="account-provider-badge provider-{{ account.provider }}" title="{{ account.provider_label }} 계정">
+                            {% if account.provider == 'kakao' %}
+                            <i class="fa-solid fa-comment" aria-hidden="true"></i>
+                            {% elif account.provider == 'google' %}
+                            <b aria-hidden="true">G</b>
+                            {% else %}
+                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                            {% endif %}
+                            <span class="sr-only">{{ account.provider_label }}</span>
+                        </span>
+                    </div>
+                    <details class="owner-account-edit">
+                        <summary>회원 정보 수정</summary>
+                        <form action="{{ url_for('update_account_profile') }}" method="post">
+                            <label>
+                                <span>닉네임</span>
+                                <input type="text" name="account_name" value="{{ account.name }}" maxlength="80" required>
+                            </label>
+                            <button type="submit" class="primary-button">저장</button>
+                        </form>
+                    </details>
+                    <a class="owner-account-logout" href="{{ url_for('logout') }}">로그아웃</a>
+                </div>
+            </section>
+            {% else %}
 
             <section class="profile-hero">
                 <div class="profile-hero-head">
@@ -172,9 +221,11 @@
                     {% endfor %}
                 </div>
             </section>
+            {% endif %}
         </main>
 
         <aside class="right-rail">
+            {% if not (can_edit and active_profile_tab == 'account') %}
             <section class="panel-card">
                 <div class="section-head compact">
                     <h3>프로필 메모</h3>
@@ -198,6 +249,14 @@
                     </div>
                 </div>
             </section>
+            {% else %}
+            <section class="panel-card account-guide-card">
+                <div class="section-head compact">
+                    <h3>계정 안내</h3>
+                </div>
+                <p>소셜 계정 정보는 로그인에만 사용하며, 다른 사용자에게 공개되지 않아요.</p>
+            </section>
+            {% endif %}
 
             <section class="panel-card">
                 <div class="section-head compact">
@@ -213,9 +272,9 @@
                 </ul>
             </section>
 
-            {% if can_edit %}
+            {% if can_edit and active_profile_tab == 'pet' %}
             <a class="ghost-button full-width" href="{{ url_for('logout') }}">로그아웃</a>
-            {% else %}
+            {% elif not can_edit %}
             <a class="ghost-button full-width" href="{{ url_for('profile') }}">내 프로필로 이동</a>
             <a class="ghost-button full-width" href="{{ url_for('index') }}">피드로 돌아가기</a>
             {% endif %}
@@ -288,7 +347,7 @@
         </div>
     </div>
 
-    {% if can_edit %}
+    {% if can_edit and active_profile_tab == 'pet' %}
     <div class="overlay-panel" id="profile-modal" aria-hidden="true">
         <div class="panel-dialog profile-dialog">
             <div class="panel-head">
