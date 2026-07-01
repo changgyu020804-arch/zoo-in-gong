@@ -2555,6 +2555,72 @@ button.grid-post {
     background: #fff9f4;
 }
 
+.welcome-oauth-error,
+.welcome-google-help {
+    grid-column: 1 / -1;
+}
+
+.welcome-oauth-error {
+    margin: 0;
+}
+
+.welcome-google-help {
+    margin: -4px 0 0;
+    color: #786f68;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.welcome-google-path.is-disabled {
+    border-color: #ddcfc5;
+    background: #fffaf7;
+}
+
+.google-mark {
+    border: 1px solid #e3e3e3;
+    background: #fff !important;
+    color: #4285f4 !important;
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+}
+
+.pet-onboarding-callout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 20px;
+    padding: 26px;
+    border: 1px solid #efc9ba;
+    border-radius: 8px;
+    background: #fff6f1;
+}
+
+.pet-onboarding-callout-icon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e9654f;
+    color: #fff;
+    font-size: 1.25rem;
+}
+
+.pet-onboarding-callout h2,
+.pet-onboarding-callout p {
+    margin: 0;
+}
+
+.pet-onboarding-callout h2 {
+    margin-top: 4px;
+}
+
+.pet-onboarding-callout p:last-child {
+    margin-top: 8px;
+    color: #74675e;
+    line-height: 1.6;
+}
+
 .welcome-path {
     min-width: 0;
     display: grid;
@@ -5204,6 +5270,32 @@ body {
 
     .welcome-path-arrow {
         display: none;
+    }
+
+    .welcome-google-help {
+        margin-top: 2px;
+        font-size: 0.78rem;
+    }
+
+    .pet-onboarding-callout {
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 14px;
+        padding: 20px 18px;
+    }
+
+    .pet-onboarding-callout .primary-button {
+        grid-column: 1 / -1;
+        width: 100%;
+        text-align: center;
+    }
+
+    .pet-onboarding-callout-icon {
+        width: 46px;
+        height: 46px;
+    }
+
+    .pet-onboarding-callout h2 {
+        font-size: 1.15rem;
     }
 
     .match-invite-page {

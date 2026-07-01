@@ -45,14 +45,7 @@ def register_page_routes(app):
     def index():
         username = session.get("username")
         if not username:
-            feed_page = get_feed_page(None, limit=20)
-            return render_template(
-                "guest_feed.html",
-                posts=feed_page["posts"],
-                feed_has_more=feed_page["has_more"],
-                feed_next_cursor=feed_page["next_cursor"],
-                reaction_rankings=build_reaction_rankings(),
-            )
+            return redirect(url_for("welcome"))
 
         profile, stats, notifications, bootstrap = build_page_context("home", username)
         feed_page = get_feed_page(username, limit=20)
@@ -71,6 +64,7 @@ def register_page_routes(app):
             reaction_rankings=reaction_rankings,
             daily_mission=build_daily_mission(profile),
             bootstrap=bootstrap,
+            has_pet_profile=profile.get("has_pet_profile", True),
         )
 
     @app.route("/profile")

@@ -1,4 +1,4 @@
-from flask import jsonify, request, session
+from flask import jsonify, request
 
 from caption_ai import is_supported_image_file
 from db import get_db_connection
@@ -147,7 +147,9 @@ def register_api_routes(app):
 
     @app.route("/api/feed")
     def api_feed():
-        username = session.get("username")
+        username, error = login_required_json()
+        if error:
+            return error
 
         before_created_at = clean_single_line_text(request.args.get("before_created_at", ""), 40)
         before_id = request.args.get("before_id", type=int)
@@ -163,7 +165,9 @@ def register_api_routes(app):
 
     @app.route("/api/posts/<int:post_id>")
     def api_post_detail(post_id):
-        username = session.get("username")
+        username, error = login_required_json()
+        if error:
+            return error
 
         post = get_post(post_id, viewer_username=username)
         if not post:

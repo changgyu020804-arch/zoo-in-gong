@@ -1,9 +1,12 @@
 import sqlite3
+import os
 import re
 import unicodedata
 from urllib.parse import urlsplit
 
+from authlib.integrations.flask_client import OAuth
 from flask import abort, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from caption_ai import is_supported_image_file
 from db import get_db_connection
@@ -128,15 +131,121 @@ def reset_password_for_account(fields, new_password):
         matches = [row for row in rows if account_fields_match(row, fields, include_username=True)]
         if len(matches) != 1:
             return False
-        cursor = conn.execute("UPDATE users SET password = ? WHERE id = ?", (new_password, matches[0]["id"]))
+        cursor = conn.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            (generate_password_hash(new_password), matches[0]["id"]),
+        )
         conn.commit()
     return cursor.rowcount > 0
 
 
 def register_auth_routes(app):
+    google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    oauth = OAuth(app)
+    google = oauth.register(
+        name="google",
+        client_id=google_client_id,
+        client_secret=google_client_secret,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
+    def google_redirect_uri():
+        configured_uri = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
+        if configured_uri:
+            return configured_uri
+        if os.environ.get("RENDER"):
+            return url_for("google_callback", _external=True, _scheme="https")
+        return url_for("google_callback", _external=True)
+
+    def unique_google_username(provider_user_id):
+        suffix = re.sub(r"[^a-zA-Z0-9]", "", provider_user_id)[-14:] or "account"
+        candidate = f"google_{suffix}"[:50]
+        counter = 1
+        while username_exists(candidate):
+            counter += 1
+            candidate = f"google_{suffix}_{counter}"[:50]
+        return candidate
+
     @app.route("/welcome")
     def welcome():
-        return render_template("welcome.html")
+        return render_template(
+            "welcome.html",
+            google_login_enabled=bool(google_client_id and google_client_secret),
+        )
+
+    @app.route("/auth/google")
+    def google_login():
+        if not google_client_id or not google_client_secret:
+            return render_template(
+                "welcome.html",
+                google_login_enabled=False,
+                oauth_error="Google 로그인을 사용하려면 서버에 Google OAuth 키를 먼저 연결해야 해요.",
+            ), 503
+        return google.authorize_redirect(google_redirect_uri())
+
+    @app.route("/auth/google/callback")
+    def google_callback():
+        if not google_client_id or not google_client_secret:
+            return redirect(url_for("welcome"))
+        try:
+            token = google.authorize_access_token()
+            userinfo = token.get("userinfo") or google.userinfo().json()
+        except Exception:
+            app.logger.exception("Google OAuth callback failed")
+            return render_template(
+                "welcome.html",
+                google_login_enabled=True,
+                oauth_error="Google 로그인에 실패했어요. 잠시 후 다시 시도해 주세요.",
+            ), 400
+
+        provider_user_id = clean_single_line_text(userinfo.get("sub", ""), 120)
+        email = clean_single_line_text(userinfo.get("email", ""), 180)
+        account_name = clean_single_line_text(userinfo.get("name", ""), 80)
+        account_avatar_url = clean_single_line_text(userinfo.get("picture", ""), 500)
+        if not provider_user_id:
+            return redirect(url_for("welcome"))
+
+        with get_db_connection() as conn:
+            oauth_row = conn.execute(
+                "SELECT username FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
+                ("google", provider_user_id),
+            ).fetchone()
+            if oauth_row:
+                username = oauth_row["username"]
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET account_email = ?, account_name = ?, account_avatar_url = ?
+                    WHERE username = ?
+                    """,
+                    (email, account_name, account_avatar_url, username),
+                )
+            else:
+                username = unique_google_username(provider_user_id)
+                conn.execute(
+                    """
+                    INSERT INTO users (
+                        username, password, pet_name, pet_species, pet_age, persona,
+                        activity_level, pet_likes, pet_dislikes, account_email,
+                        account_name, account_avatar_url, pet_profile_completed
+                    )
+                    VALUES (?, '', '', '', 0, '', '', '', '', ?, ?, ?, 0)
+                    """,
+                    (username, email, account_name, account_avatar_url),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO oauth_accounts (username, provider, provider_user_id, email)
+                    VALUES (?, 'google', ?, ?)
+                    """,
+                    (username, provider_user_id, email),
+                )
+            conn.commit()
+
+        session["username"] = username
+        return redirect(url_for("index"))
 
     @app.route("/match/<inviter_username>")
     def match_invite(inviter_username):
@@ -190,12 +299,22 @@ def register_auth_routes(app):
             password = clean_single_line_text(request.form["password"], 100)
 
             with get_db_connection() as conn:
-                user = conn.execute(
-                    "SELECT * FROM users WHERE username = ? AND password = ?",
-                    (username, password),
-                ).fetchone()
+                user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+                stored_password = user["password"] if user else ""
+                password_matches = False
+                if stored_password:
+                    if stored_password.startswith(("scrypt:", "pbkdf2:")):
+                        password_matches = check_password_hash(stored_password, password)
+                    else:
+                        password_matches = stored_password == password
+                    if password_matches and stored_password == password:
+                        conn.execute(
+                            "UPDATE users SET password = ? WHERE username = ?",
+                            (generate_password_hash(password), username),
+                        )
+                        conn.commit()
 
-            if user:
+            if user and password_matches:
                 session["username"] = user["username"]
                 return redirect(next_url or url_for("index"))
 
@@ -351,7 +470,7 @@ def register_auth_routes(app):
                         """,
                         (
                             username,
-                            password,
+                            generate_password_hash(password),
                             pet_name,
                             pet_species,
                             pet_age,
@@ -386,6 +505,101 @@ def register_auth_routes(app):
                 )
 
         return render_template("signup.html", invite_username=invite_username)
+
+    @app.route("/pet-onboarding", methods=["GET", "POST"])
+    def pet_onboarding():
+        username = session.get("username")
+        if not username:
+            return redirect(url_for("welcome"))
+
+        with get_db_connection() as conn:
+            account = conn.execute(
+                "SELECT pet_profile_completed FROM users WHERE username = ?",
+                (username,),
+            ).fetchone()
+        if not account:
+            session.pop("username", None)
+            return redirect(url_for("welcome"))
+        if account["pet_profile_completed"]:
+            return redirect(url_for("index"))
+
+        if request.method == "POST":
+            pet_name = clean_single_line_text(request.form.get("pet_name", ""), 50)
+            pet_species = clean_signup_species(request.form)
+            personality = clean_single_line_text(request.form.get("personality", ""), 40)
+            try:
+                pet_age = max(0, int((request.form.get("pet_age") or "0").strip() or 0))
+            except ValueError:
+                pet_age = 0
+            activity_level = clean_single_line_text(request.form.get("activity_level", "보통"), 20)
+            pet_likes = clean_single_line_text(request.form.get("pet_likes", "간식"), 120)
+            pet_dislikes = clean_single_line_text(request.form.get("pet_dislikes", "목욕"), 120)
+            owner_persona_note = clean_multi_line_text(request.form.get("owner_persona_note", ""), 220)
+            persona_answers = extract_persona_answers(request.form)
+            if not all([pet_name, pet_species, personality]):
+                return render_template(
+                    "signup.html",
+                    onboarding_mode=True,
+                    error="강아지 이름, 종류, 성격을 모두 입력해 주세요.",
+                    form_data=request.form,
+                    start_section="pet",
+                )
+
+            avatar_url = ""
+            avatar_path = None
+            avatar_file = request.files.get("avatar")
+            if avatar_file and avatar_file.filename:
+                avatar_path, avatar_url = store_uploaded_file(avatar_file, "pet_avatar")
+                if not is_supported_image_file(avatar_path):
+                    avatar_path.unlink(missing_ok=True)
+                    return render_template(
+                        "signup.html",
+                        onboarding_mode=True,
+                        error="프로필 사진은 이미지 파일만 사용할 수 있어요.",
+                        form_data=request.form,
+                        start_section="avatar",
+                    )
+
+            temp_profile = enrich_profile(
+                {
+                    "username": username,
+                    "pet_name": pet_name,
+                    "pet_species": pet_species,
+                    "pet_age": pet_age,
+                    "activity_level": activity_level,
+                    "pet_likes": pet_likes,
+                    "pet_dislikes": pet_dislikes,
+                    "avatar_url": avatar_url,
+                    "bio": f"{pet_name}의 첫 인사예요. 오늘부터 주인공 기록을 시작해요.",
+                    "status_message": "새 친구 찾는 중",
+                    "favorite_place": "",
+                    "personality": personality,
+                    "owner_persona_note": owner_persona_note,
+                    **persona_answers,
+                }
+            )
+            with get_db_connection() as conn:
+                conn.execute(
+                    f"""
+                    UPDATE users SET
+                        pet_name = ?, pet_species = ?, pet_age = ?, persona = ?,
+                        activity_level = ?, pet_likes = ?, pet_dislikes = ?, avatar_url = ?,
+                        bio = ?, status_message = ?, personality = ?, owner_persona_note = ?,
+                        pet_profile_completed = 1,
+                        {", ".join(f"{key} = ?" for key in PERSONA_KEYS)}
+                    WHERE username = ?
+                    """,
+                    (
+                        pet_name, pet_species, pet_age, temp_profile["persona"], activity_level,
+                        pet_likes, pet_dislikes, avatar_url, temp_profile["bio"],
+                        temp_profile["status_message"], personality, owner_persona_note,
+                        *[persona_answers[key] for key in PERSONA_KEYS], username,
+                    ),
+                )
+                conn.commit()
+            return redirect(url_for("signup_complete"))
+
+        return render_template("signup.html", onboarding_mode=True)
 
     @app.route("/signup/complete")
     def signup_complete():

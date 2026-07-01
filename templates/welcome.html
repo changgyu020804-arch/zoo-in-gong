@@ -13,17 +13,22 @@
             <div class="welcome-brand-copy">
                 <p class="auth-kicker">강아지가 주인공이 되는 공간</p>
                 <h1 id="welcome-title">Zoo-In-Gong</h1>
-                <p>처음이라면 펫 MBTI부터, 이미 회원이라면 바로 로그인하세요.</p>
+                <p>보호자 계정으로 먼저 들어오고, 게시물을 올릴 때 우리 강아지 프로필을 만들어요.</p>
             </div>
         </section>
 
         <section class="welcome-paths" aria-label="시작 방법 선택">
-            <a class="welcome-path welcome-path-primary" href="{{ url_for('signup') }}">
-                <span class="welcome-path-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
+            {% if oauth_error %}<div class="error-box welcome-oauth-error">{{ oauth_error }}</div>{% endif %}
+            <a
+                class="welcome-path welcome-path-primary welcome-google-path{% if not google_login_enabled %} is-disabled{% endif %}"
+                href="{{ url_for('google_login') }}"
+                {% if not google_login_enabled %}aria-describedby="google-login-help"{% endif %}
+            >
+                <span class="welcome-path-icon google-mark" aria-hidden="true">G</span>
                 <span class="welcome-path-copy">
-                    <small>처음 왔어요</small>
-                    <strong>펫 MBTI 검사하기</strong>
-                    <span>12개 질문으로 성향을 알아보고 회원가입을 이어가요.</span>
+                    <small>처음 방문했어요</small>
+                    <strong>Google로 시작</strong>
+                    <span>간편하게 가입하고 바로 댕댕이 피드를 둘러보세요.</span>
                 </span>
                 <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
             </a>
@@ -31,12 +36,15 @@
             <a class="welcome-path" href="{{ url_for('login') }}">
                 <span class="welcome-path-icon" aria-hidden="true"><i class="fa-solid fa-right-to-bracket"></i></span>
                 <span class="welcome-path-copy">
-                    <small>이미 회원이에요</small>
-                    <strong>로그인하기</strong>
-                    <span>기존 계정으로 Zoo-In-Gong에 들어가요.</span>
+                    <small>기존 회원이에요</small>
+                    <strong>아이디로 로그인</strong>
+                    <span>기존 Zoo-In-Gong 아이디와 비밀번호를 계속 사용할 수 있어요.</span>
                 </span>
                 <i class="fa-solid fa-arrow-right welcome-path-arrow" aria-hidden="true"></i>
             </a>
+            {% if not google_login_enabled %}
+            <p class="welcome-google-help" id="google-login-help">개발 환경에서는 Google OAuth 키를 연결하면 버튼이 활성화돼요.</p>
+            {% endif %}
         </section>
     </main>
 </body>

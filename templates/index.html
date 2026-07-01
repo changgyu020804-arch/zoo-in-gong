@@ -99,6 +99,7 @@
             </section>
             {% endif %}
 
+            {% if has_pet_profile %}
             <section
                 class="persona-share-section"
                 id="persona-share-section"
@@ -247,6 +248,17 @@
                     <span>사진과 성향 정보를 함께 읽는 중이에요...</span>
                 </div>
             </section>
+            {% else %}
+            <section class="pet-onboarding-callout" id="composer-section">
+                <span class="pet-onboarding-callout-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
+                <div>
+                    <p class="eyebrow">첫 게시물을 준비할까요?</p>
+                    <h2>우리 강아지 프로필을 먼저 만들어요</h2>
+                    <p>펫 MBTI와 기본 정보를 한 번만 등록하면 AI 캡션과 친구 궁합에 계속 반영돼요.</p>
+                </div>
+                <a class="primary-button" href="{{ url_for('pet_onboarding') }}">강아지 프로필 만들기</a>
+            </section>
+            {% endif %}
 
             <section class="feed-list">
                 {% for post in posts %}
@@ -735,7 +747,7 @@
     <script>
         window.APP_BOOTSTRAP = {{ bootstrap | tojson }};
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=cute-emoji-20260630b"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=google-owner-flow-20260701"></script>
 </body>
 </html>
 

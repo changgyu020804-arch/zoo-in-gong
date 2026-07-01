@@ -52,26 +52,14 @@ def login_as(client, username):
         session["username"] = username
 
 
-def test_first_visit_shows_public_feed(client):
-    create_user(client, "public_owner", "공개멍")
-    with client.db.get_db_connection() as conn:
-        conn.execute(
-            "INSERT INTO posts (image_url, caption, username) VALUES (?, ?, ?)",
-            ("/static/uploads/public.jpg", "어서 와요", "public_owner"),
-        )
-        conn.commit()
+def test_first_visit_redirects_to_account_entry(client):
+    response = client.get("/", follow_redirects=False)
 
-    response = client.get("/")
-
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert "오늘의 댕댕이 피드" in html
-    assert "공개멍" in html
-    assert 'id="guest-gate-panel"' in html
-    assert "펫 MBTI 검사하고 시작하기" in html
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/welcome")
 
 
-def test_guest_can_read_feed_but_cannot_react(client):
+def test_guest_cannot_read_feed_or_react(client):
     create_user(client, "owner", "오너")
     with client.db.get_db_connection() as conn:
         post_id = conn.execute(
@@ -84,22 +72,83 @@ def test_guest_can_read_feed_but_cannot_react(client):
     detail = client.get(f"/api/posts/{post_id}")
     reaction = client.post(f"/react/cute/{post_id}")
 
-    assert feed.status_code == 200
-    assert feed.get_json()["posts"][0]["id"] == post_id
-    assert detail.status_code == 200
-    assert detail.get_json()["post"]["id"] == post_id
+    assert feed.status_code == 401
+    assert detail.status_code == 401
     assert reaction.status_code == 401
 
 
-def test_welcome_offers_login_and_pet_mbti_paths(client):
+def test_welcome_offers_google_and_existing_login_paths(client):
     response = client.get("/welcome")
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     assert 'href="/login"' in html
-    assert 'href="/signup"' in html
-    assert "펫 MBTI 검사하기" in html
-    assert "로그인하기" in html
+    assert 'href="/auth/google"' in html
+    assert "Google로 시작" in html
+    assert "아이디로 로그인" in html
+
+
+def test_google_login_without_server_keys_is_friendly(client):
+    response = client.get("/auth/google")
+
+    assert response.status_code == 503
+    assert "Google OAuth 키를 먼저 연결" in response.get_data(as_text=True)
+
+
+def test_google_owner_can_browse_but_must_create_pet_before_upload(client):
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO users (
+                username, password, account_email, account_name, pet_profile_completed
+            ) VALUES (?, '', ?, ?, 0)
+            """,
+            ("google_owner", "owner@example.com", "보호자",),
+        )
+        conn.commit()
+    login_as(client, "google_owner")
+
+    home = client.get("/")
+    upload = client.post("/upload")
+
+    assert home.status_code == 200
+    assert "우리 강아지 프로필을 먼저 만들어요" in home.get_data(as_text=True)
+    assert upload.status_code == 409
+    assert upload.get_json()["redirect_url"] == "/pet-onboarding"
+
+
+def test_pet_onboarding_completes_google_owner_profile(client):
+    with client.db.get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO users (
+                username, password, account_email, account_name, pet_profile_completed
+            ) VALUES (?, '', ?, ?, 0)
+            """,
+            ("google_owner", "owner@example.com", "보호자",),
+        )
+        conn.commit()
+    login_as(client, "google_owner")
+
+    response = client.post(
+        "/pet-onboarding",
+        data={
+            "pet_name": "콩이",
+            "pet_species": "푸들",
+            "pet_age": "2",
+            "personality": "활발한",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "/signup/complete" in response.headers["Location"]
+    with client.db.get_db_connection() as conn:
+        user = conn.execute(
+            "SELECT pet_name, pet_species, pet_profile_completed FROM users WHERE username = ?",
+            ("google_owner",),
+        ).fetchone()
+    assert dict(user) == {"pet_name": "콩이", "pet_species": "푸들", "pet_profile_completed": 1}
 
 
 def test_signup_starts_with_pet_mbti_before_account_fields(client):

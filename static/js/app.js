@@ -1896,6 +1896,10 @@
         }
 
         if (action === "upload") {
+            if (bootstrap.has_pet_profile === false) {
+                window.location.href = bootstrap.pet_onboarding_url || "/pet-onboarding";
+                return;
+            }
             if (page !== "home") {
                 window.location.href = "/#composer-section";
                 return;
@@ -2101,6 +2105,10 @@
                 const response = await fetch("/upload", { method: "POST", body: formData });
                 const data = await response.json();
                 if (!response.ok) {
+                    if (data.requires_pet_profile && data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                        return;
+                    }
                     showToast(data.error || "업로드에 실패했어요.");
                     return;
                 }

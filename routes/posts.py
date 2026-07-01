@@ -22,7 +22,7 @@ from runtime_metrics import get_process_memory_mb
 from services import build_comment_item, create_notification, get_post, get_user_profile
 from text_utils import clean_multi_line_text, clean_single_line_text
 from upload_utils import remove_upload_file_if_unused, store_uploaded_file
-from routes.utils import login_required_json
+from routes.utils import login_required_json, pet_profile_required_json
 
 
 logger = logging.getLogger(__name__)
@@ -208,6 +208,9 @@ def register_post_routes(app):
         username, error = login_required_json()
         if error:
             return error
+        profile_error = pet_profile_required_json(username)
+        if profile_error:
+            return profile_error
 
         file = request.files.get("file")
         if not file or not file.filename:
@@ -285,6 +288,9 @@ def register_post_routes(app):
         username, error = login_required_json()
         if error:
             return error
+        profile_error = pet_profile_required_json(username)
+        if profile_error:
+            return profile_error
 
         file = request.files.get("file")
         if not file or not file.filename:

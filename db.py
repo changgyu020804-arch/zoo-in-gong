@@ -8,6 +8,10 @@ from config import DATABASE_PATH
 
 
 PROFILE_COLUMNS = [
+    ("account_email", "TEXT DEFAULT ''"),
+    ("account_name", "TEXT DEFAULT ''"),
+    ("account_avatar_url", "TEXT DEFAULT ''"),
+    ("pet_profile_completed", "INTEGER DEFAULT 1"),
     ("phone_number", "TEXT DEFAULT ''"),
     ("avatar_url", "TEXT DEFAULT ''"),
     ("bio", "TEXT DEFAULT ''"),
@@ -278,6 +282,27 @@ def init_db():
             """
             CREATE INDEX IF NOT EXISTS idx_notifications_recipient_created
             ON notifications(recipient_username, created_at, id)
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS oauth_accounts
+            (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                provider_user_id TEXT NOT NULL,
+                email TEXT DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(provider, provider_user_id),
+                FOREIGN KEY(username) REFERENCES users(username)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_oauth_accounts_username
+            ON oauth_accounts(username)
             """
         )
         cursor.execute(

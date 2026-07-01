@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-{% set page_title = 'Zoo-In-Gong | 강아지 세계 입장권' %}
+{% set page_title = 'Zoo-In-Gong | ' ~ ('강아지 프로필 만들기' if onboarding_mode else '강아지 세계 입장권') %}
 {% include 'partials/head.html' %}
 <body class="auth-page signup-flow-page dog-world-page">
     {% set persona_questions_per_step = 2 %}
@@ -26,14 +26,14 @@
                 </div>
                 <div class="step-meter" aria-hidden="true" hidden><span></span></div>
             </div>
-            <a href="{{ url_for('login') }}" class="skip-link">로그인</a>
+            <a href="{{ url_for('index') if onboarding_mode else url_for('login') }}" class="skip-link">{{ '나중에' if onboarding_mode else '로그인' }}</a>
         </header>
 
         {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
 
         {% set saved = form_data | default({}) %}
         <form
-            action="{{ url_for('signup') }}"
+            action="{{ url_for('pet_onboarding') if onboarding_mode else url_for('signup') }}"
             method="post"
             enctype="multipart/form-data"
             class="signup-step-form"
@@ -76,7 +76,7 @@
                 <span class="mbti-bridge-icon" aria-hidden="true"><i class="fa-solid fa-paw"></i></span>
                 <p class="step-label">펫 MBTI 검사 완료</p>
                 <h1>성향을 모두 확인했어요!</h1>
-                <p class="step-desc">이제 결과를 저장할 주인공 프로필과 계정을 만들어요. 가입을 마치면 12가지 페르소나 중 결과를 보여드릴게요.</p>
+                <p class="step-desc">이제 결과를 저장할 주인공 프로필을 만들어요. 완료하면 12가지 페르소나 중 결과를 보여드릴게요.</p>
             </section>
 
             <section class="signup-step" data-step="{{ persona_step_count + 1 }}" data-section="pet">
@@ -176,6 +176,7 @@
                 <button type="button" class="ghost-button full-width signup-avatar-remove is-hidden" id="signupAvatarRemove">선택한 사진 지우기</button>
             </section>
 
+            {% if not onboarding_mode %}
             <section class="signup-step" data-step="{{ persona_step_count + 7 }}" data-section="account">
                 <p class="step-label">결과 저장하기</p>
                 <h1>로그인 계정을 만들어요:</h1>
@@ -211,6 +212,7 @@
                     </label>
                 </div>
             </section>
+            {% endif %}
 
             <section class="signup-step" data-step="{{ persona_step_count + 8 }}" data-section="memo">
                 <p class="step-label">마지막 발도장</p>
@@ -224,7 +226,7 @@
             <footer class="signup-step-footer">
                 <p class="step-validation-message" id="stepValidationMessage" aria-live="polite" hidden></p>
                 <button type="button" class="primary-button full-width" id="nextStepButton">다음으로 멍!</button>
-                <button type="submit" class="primary-button full-width is-hidden" id="submitSignupButton">입장 완료</button>
+                <button type="submit" class="primary-button full-width is-hidden" id="submitSignupButton">{{ '강아지 프로필 완성' if onboarding_mode else '입장 완료' }}</button>
                 <p class="step-count"><span id="currentStep">1</span>/<span id="totalStep">10</span></p>
             </footer>
         </form>
@@ -347,6 +349,7 @@
         }
 
         function syncPasswordStatus() {
+            if (!passwordInput || !passwordConfirmationInput) return;
             const password = passwordInput.value;
             const longEnough = password.length >= 8;
             const hasNumber = /\d/.test(password);
@@ -371,6 +374,7 @@
         }
 
         async function checkUsernameAvailability() {
+            if (!usernameInput) return true;
             const value = usernameInput.value.trim();
             const requestId = ++usernameCheckRequest;
             usernameAvailable = false;
@@ -463,16 +467,18 @@
             });
         });
 
-        usernameInput.addEventListener("input", () => {
-            usernameAvailable = false;
-            usernameInput.setCustomValidity("");
-            window.clearTimeout(usernameCheckTimer);
-            setStatus(usernameStatus, usernameInput.value.trim() ? "아이디를 확인할게요." : "입력하면 사용 가능 여부를 확인해요.");
-            usernameCheckTimer = window.setTimeout(checkUsernameAvailability, 350);
-        });
+        if (usernameInput) {
+            usernameInput.addEventListener("input", () => {
+                usernameAvailable = false;
+                usernameInput.setCustomValidity("");
+                window.clearTimeout(usernameCheckTimer);
+                setStatus(usernameStatus, usernameInput.value.trim() ? "아이디를 확인할게요." : "입력하면 사용 가능 여부를 확인해요.");
+                usernameCheckTimer = window.setTimeout(checkUsernameAvailability, 350);
+            });
+        }
 
-        passwordInput.addEventListener("input", syncPasswordStatus);
-        passwordConfirmationInput.addEventListener("input", syncPasswordStatus);
+        passwordInput?.addEventListener("input", syncPasswordStatus);
+        passwordConfirmationInput?.addEventListener("input", syncPasswordStatus);
 
         document.querySelectorAll(".signup-password-toggle").forEach((button) => {
             button.addEventListener("click", () => {

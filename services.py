@@ -248,7 +248,26 @@ def user_profile_select(alias="u", username_expr=None):
 def get_user_profile(username):
     with get_db_connection() as conn:
         row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    return row_to_profile(row, username)
+    profile = row_to_profile(row, username)
+    if not row:
+        profile["has_pet_profile"] = False
+        return profile
+
+    row_keys = set(row.keys())
+    profile["account_email"] = row["account_email"] if "account_email" in row_keys else ""
+    profile["account_name"] = row["account_name"] if "account_name" in row_keys else ""
+    profile["account_avatar_url"] = row["account_avatar_url"] if "account_avatar_url" in row_keys else ""
+    profile["has_pet_profile"] = bool(
+        row["pet_profile_completed"] if "pet_profile_completed" in row_keys else True
+    )
+    if not profile["has_pet_profile"]:
+        profile["pet_name"] = profile["account_name"] or "새로운 보호자"
+        profile["avatar_url"] = profile["account_avatar_url"] or ""
+        profile["display_avatar_url"] = profile["avatar_url"]
+        profile["initial"] = profile["pet_name"][:1].upper()
+        profile["status_message"] = "강아지 프로필을 준비 중이에요"
+        profile["bio"] = "게시물을 올릴 때 우리 강아지 프로필을 만들어 보세요."
+    return profile
 
 
 def get_following_usernames(conn, username):
@@ -1677,4 +1696,6 @@ def serialize_bootstrap(page_name, profile, notifications, message_threads):
         "notification_unread_count": get_unread_notification_count(profile["username"]),
         "message_unread_count": get_unread_message_count(profile["username"]),
         "message_threads": message_threads,
+        "has_pet_profile": bool(profile.get("has_pet_profile", True)),
+        "pet_onboarding_url": "/pet-onboarding",
     }
