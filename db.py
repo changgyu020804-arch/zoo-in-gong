@@ -87,267 +87,283 @@ def timestamp_from_upload_url(image_url):
     return local_time.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _create_tables(cursor):
+    """Create all application tables."""
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            pet_name TEXT,
+            pet_species TEXT,
+            pet_age INTEGER,
+            persona TEXT,
+            activity_level TEXT,
+            pet_likes TEXT,
+            pet_dislikes TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS posts
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            image_url TEXT,
+            caption TEXT,
+            likes INTEGER DEFAULT 0,
+            username TEXT,
+            activity_text TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS comments
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER,
+            content TEXT,
+            username TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(post_id) REFERENCES posts(id)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS follows
+        (
+            follower_username TEXT NOT NULL,
+            followed_username TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (follower_username, followed_username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS messages
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_username TEXT NOT NULL,
+            receiver_username TEXT NOT NULL,
+            body TEXT NOT NULL,
+            read_at TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(sender_username) REFERENCES users(username),
+            FOREIGN KEY(receiver_username) REFERENCES users(username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS post_likes
+        (
+            post_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (post_id, username),
+            FOREIGN KEY(post_id) REFERENCES posts(id),
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS post_reactions
+        (
+            post_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            reaction_type TEXT NOT NULL CHECK (reaction_type IN ('cute', 'funny')),
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (post_id, username, reaction_type),
+            FOREIGN KEY(post_id) REFERENCES posts(id),
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS post_bookmarks
+        (
+            post_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (post_id, username),
+            FOREIGN KEY(post_id) REFERENCES posts(id),
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notifications
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient_username TEXT NOT NULL,
+            actor_username TEXT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            link TEXT DEFAULT '',
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(recipient_username) REFERENCES users(username),
+            FOREIGN KEY(actor_username) REFERENCES users(username)
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_accounts
+        (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            provider_user_id TEXT NOT NULL,
+            email TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(provider, provider_user_id),
+            FOREIGN KEY(username) REFERENCES users(username)
+        )
+        """
+    )
+
+
+def _create_indexes(cursor):
+    """Create all performance indexes."""
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_messages_pair_created
+        ON messages(sender_username, receiver_username, created_at)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_messages_receiver_read
+        ON messages(receiver_username, read_at, sender_username)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_post_reactions_type_post
+        ON post_reactions(reaction_type, post_id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_post_reactions_username
+        ON post_reactions(username, reaction_type)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_post_bookmarks_username
+        ON post_bookmarks(username, created_at)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_posts_username_created
+        ON posts(username, created_at, id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_posts_created
+        ON posts(created_at, id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_comments_post_id
+        ON comments(post_id, id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_follows_follower_created
+        ON follows(follower_username, created_at)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_post_likes_username
+        ON post_likes(username, post_id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_notifications_recipient_created
+        ON notifications(recipient_username, created_at, id)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_oauth_accounts_username
+        ON oauth_accounts(username)
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread
+        ON notifications(recipient_username, is_read)
+        """
+    )
+
+
+def _migrate_data(cursor):
+    """Add missing columns and backfill data for schema evolution."""
+    ensure_columns(cursor, "users", PROFILE_COLUMNS)
+    ensure_columns(cursor, "posts", POST_COLUMNS)
+    ensure_columns(cursor, "messages", MESSAGE_COLUMNS)
+    ensure_columns(cursor, "comments", COMMENT_COLUMNS)
+
+    posts_without_created_at = cursor.execute(
+        """
+        SELECT id, image_url
+        FROM posts
+        WHERE created_at IS NULL OR created_at = ''
+        """
+    ).fetchall()
+    for row in posts_without_created_at:
+        upload_time = timestamp_from_upload_url(row["image_url"])
+        if upload_time:
+            cursor.execute(
+                "UPDATE posts SET created_at = ? WHERE id = ?",
+                (upload_time, row["id"]),
+            )
+
+    cursor.execute(
+        """
+        UPDATE posts
+        SET created_at = CURRENT_TIMESTAMP
+        WHERE created_at IS NULL OR created_at = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE comments
+        SET created_at = CURRENT_TIMESTAMP
+        WHERE created_at IS NULL OR created_at = ''
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE posts
+        SET caption_status = 'ready'
+        WHERE caption_status IS NULL OR caption_status = ''
+        """
+    )
+
+
 def init_db():
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE,
-                password TEXT,
-                pet_name TEXT,
-                pet_species TEXT,
-                pet_age INTEGER,
-                persona TEXT,
-                activity_level TEXT,
-                pet_likes TEXT,
-                pet_dislikes TEXT
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS posts
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                image_url TEXT,
-                caption TEXT,
-                likes INTEGER DEFAULT 0,
-                username TEXT,
-                activity_text TEXT DEFAULT '',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS comments
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_id INTEGER,
-                content TEXT,
-                username TEXT DEFAULT '',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(post_id) REFERENCES posts(id)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS follows
-            (
-                follower_username TEXT NOT NULL,
-                followed_username TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (follower_username, followed_username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sender_username TEXT NOT NULL,
-                receiver_username TEXT NOT NULL,
-                body TEXT NOT NULL,
-                read_at TEXT DEFAULT '',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(sender_username) REFERENCES users(username),
-                FOREIGN KEY(receiver_username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_messages_pair_created
-            ON messages(sender_username, receiver_username, created_at)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_messages_receiver_read
-            ON messages(receiver_username, read_at, sender_username)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS post_likes
-            (
-                post_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (post_id, username),
-                FOREIGN KEY(post_id) REFERENCES posts(id),
-                FOREIGN KEY(username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS post_reactions
-            (
-                post_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                reaction_type TEXT NOT NULL CHECK (reaction_type IN ('cute', 'funny')),
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (post_id, username, reaction_type),
-                FOREIGN KEY(post_id) REFERENCES posts(id),
-                FOREIGN KEY(username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_post_reactions_type_post
-            ON post_reactions(reaction_type, post_id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_post_reactions_username
-            ON post_reactions(username, reaction_type)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS post_bookmarks
-            (
-                post_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (post_id, username),
-                FOREIGN KEY(post_id) REFERENCES posts(id),
-                FOREIGN KEY(username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_post_bookmarks_username
-            ON post_bookmarks(username, created_at)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_posts_username_created
-            ON posts(username, created_at, id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_posts_created
-            ON posts(created_at, id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_comments_post_id
-            ON comments(post_id, id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_follows_follower_created
-            ON follows(follower_username, created_at)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_post_likes_username
-            ON post_likes(username, post_id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS notifications
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                recipient_username TEXT NOT NULL,
-                actor_username TEXT,
-                type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                body TEXT NOT NULL,
-                link TEXT DEFAULT '',
-                is_read INTEGER DEFAULT 0,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(recipient_username) REFERENCES users(username),
-                FOREIGN KEY(actor_username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_notifications_recipient_created
-            ON notifications(recipient_username, created_at, id)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS oauth_accounts
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
-                provider TEXT NOT NULL,
-                provider_user_id TEXT NOT NULL,
-                email TEXT DEFAULT '',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(provider, provider_user_id),
-                FOREIGN KEY(username) REFERENCES users(username)
-            )
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_oauth_accounts_username
-            ON oauth_accounts(username)
-            """
-        )
-        cursor.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread
-            ON notifications(recipient_username, is_read)
-            """
-        )
-
-        ensure_columns(cursor, "users", PROFILE_COLUMNS)
-        ensure_columns(cursor, "posts", POST_COLUMNS)
-        ensure_columns(cursor, "messages", MESSAGE_COLUMNS)
-        ensure_columns(cursor, "comments", COMMENT_COLUMNS)
-        posts_without_created_at = cursor.execute(
-            """
-            SELECT id, image_url
-            FROM posts
-            WHERE created_at IS NULL OR created_at = ''
-            """
-        ).fetchall()
-        for row in posts_without_created_at:
-            upload_time = timestamp_from_upload_url(row["image_url"])
-            if upload_time:
-                cursor.execute(
-                    "UPDATE posts SET created_at = ? WHERE id = ?",
-                    (upload_time, row["id"]),
-                )
-        cursor.execute(
-            """
-            UPDATE posts
-            SET created_at = CURRENT_TIMESTAMP
-            WHERE created_at IS NULL OR created_at = ''
-            """
-        )
-        cursor.execute(
-            """
-            UPDATE comments
-            SET created_at = CURRENT_TIMESTAMP
-            WHERE created_at IS NULL OR created_at = ''
-            """
-        )
-        cursor.execute(
-            """
-            UPDATE posts
-            SET caption_status = 'ready'
-            WHERE caption_status IS NULL OR caption_status = ''
-            """
-        )
+        _create_tables(cursor)
+        _create_indexes(cursor)
+        _migrate_data(cursor)

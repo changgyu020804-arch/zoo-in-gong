@@ -108,6 +108,10 @@ def delete_user(username, confirm=False):
                 (username, username),
             ).fetchone()[0],
             "upload_urls": len(set(upload_urls)),
+            "oauth_accounts": conn.execute(
+                "SELECT COUNT(*) FROM oauth_accounts WHERE username = ?",
+                (username,),
+            ).fetchone()[0],
         }
         if post_ids:
             placeholders = ",".join("?" for _ in post_ids)
@@ -158,6 +162,7 @@ def delete_user(username, confirm=False):
         conn.execute("DELETE FROM messages WHERE sender_username = ? OR receiver_username = ?", (username, username))
         conn.execute("DELETE FROM notifications WHERE recipient_username = ? OR actor_username = ?", (username, username))
         conn.execute("DELETE FROM posts WHERE username = ?", (username,))
+        conn.execute("DELETE FROM oauth_accounts WHERE username = ?", (username,))
         conn.execute("DELETE FROM users WHERE username = ?", (username,))
 
         removable_urls = []

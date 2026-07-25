@@ -128,7 +128,10 @@ def create_app(database_path=None, upload_folder=None, testing=False):
     upload_utils.UPLOAD_FOLDER = active_upload_folder
 
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SECRET_KEY", "zooingong_secret_key_123")
+    secret_key = os.environ.get("SECRET_KEY", "")
+    if not secret_key and not testing:
+        raise RuntimeError("SECRET_KEY 환경변수가 설정되어 있지 않습니다. .env 파일에 SECRET_KEY를 추가해 주세요.")
+    app.secret_key = secret_key or "test_secret_key_for_testing_only"
     app.config["UPLOAD_FOLDER"] = str(active_upload_folder)
     app.config["TESTING"] = testing
     app.config["JSON_AS_ASCII"] = False

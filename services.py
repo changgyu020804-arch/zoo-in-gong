@@ -1036,8 +1036,8 @@ def search_profiles(viewer_username, query="", persona="", sort="match", limit=2
     with get_db_connection() as conn:
         viewer_row = conn.execute("SELECT * FROM users WHERE username = ?", (viewer_username,)).fetchone()
         following_usernames = get_following_usernames(conn, viewer_username)
-        rows = conn.execute(
-            """
+
+        sql = """
             SELECT
                 u.*,
                 COUNT(p.id) AS posts_count,
@@ -1050,38 +1050,40 @@ def search_profiles(viewer_username, query="", persona="", sort="match", limit=2
                 ) AS friend_count
             FROM users u
             LEFT JOIN posts p ON p.username = u.username
-            GROUP BY u.username
-            ORDER BY u.pet_name ASC, u.username ASC
+            WHERE u.username != ?
+        """
+        params = [viewer_username]
+
+        if query:
+            sql += """
+              AND (
+                  LOWER(u.username) LIKE ?
+                  OR LOWER(u.pet_name) LIKE ?
+                  OR LOWER(u.pet_species) LIKE ?
+                  OR LOWER(u.persona) LIKE ?
+                  OR LOWER(u.status_message) LIKE ?
+                  OR LOWER(u.bio) LIKE ?
+              )
             """
-        ).fetchall()
+            like_pattern = f"%{query}%"
+            params.extend([like_pattern] * 6)
+
+        if persona:
+            sql += " AND u.persona = ?"
+            params.append(persona)
+
+        sql += " GROUP BY u.username ORDER BY u.pet_name ASC, u.username ASC"
+        rows = conn.execute(sql, params).fetchall()
 
     viewer_profile = row_to_profile(viewer_row, viewer_username)
     results = []
     for row in rows:
         profile = row_to_profile(row)
-        if profile["username"] == viewer_username:
-            continue
         profile["posts_count"] = row["posts_count"] or 0
         profile["total_likes"] = row["total_likes"] or 0
         profile["friend_count"] = row["friend_count"] or 0
         add_match_info(viewer_profile, profile)
         profile["badges"] = build_profile_badges(profile)
-
-        if persona and profile["persona"] != persona:
-            continue
-
-        haystack = " ".join(
-            [
-                profile["username"],
-                profile["pet_name"],
-                profile["pet_species"],
-                profile["persona"],
-                profile["status_message"],
-                profile["bio"],
-            ]
-        ).lower()
-        if query and query not in haystack:
-            continue
 
         results.append(
             {
